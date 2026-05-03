@@ -1,11 +1,33 @@
 import Link from "next/link";
-import { submitHomePulse } from "@/app/community/actions";
+import { HomePulseForm } from "@/components/HomePulseForm";
 import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
 
 /** Set when the app is live on the App Store, e.g. https://apps.apple.com/app/idXXXXXXXX */
 const APP_STORE_URL: string | null = null;
 
-export default function HomePage() {
+function pulseBannerMessage(pulse: string | undefined): string | null {
+  if (!pulse) return null;
+  const map: Record<string, string> = {
+    blocked: "无法提交，请刷新页面后重试。",
+    verify: "请先完成人机验证后再提交。",
+    rate: "提交过于频繁，请稍后再试。",
+    invalid: "邮箱格式不正确。",
+    spam: "内容未通过防垃圾审核，未提交。",
+    empty: "请先填写反馈内容。",
+    error: "提交失败，请稍后再试。",
+  };
+  return map[pulse] ?? null;
+}
+
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ pulse?: string }>;
+}) {
+  const sp = searchParams ? await searchParams : {};
+  const pulseMsg = pulseBannerMessage(
+    typeof sp.pulse === "string" ? sp.pulse : undefined,
+  );
   return (
     <div className="min-h-screen bg-white text-slate-900">
       <SiteHeader />
@@ -108,45 +130,15 @@ export default function HomePage() {
             </Link>{" "}
             for structured submissions, votes, and discussion.
           </p>
-          <form className="mt-10 grid gap-4 text-left" action={submitHomePulse}>
-            <p className="text-sm text-slate-500">
-              Quick pulse check — optional name/email; submissions appear on
-              Community Ideas (Supabase).
+          {pulseMsg ? (
+            <p
+              className="mx-auto mt-6 max-w-xl rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+              role="alert"
+            >
+              {pulseMsg}
             </p>
-            <input
-              name="name"
-              className="rounded-2xl border border-slate-200 p-4 outline-none focus:border-slate-400"
-              placeholder="Your name (optional)"
-              autoComplete="name"
-            />
-            <input
-              name="email"
-              type="email"
-              className="rounded-2xl border border-slate-200 p-4 outline-none focus:border-slate-400"
-              placeholder="Email (optional)"
-              autoComplete="email"
-            />
-            <textarea
-              name="message"
-              required
-              className="min-h-[180px] rounded-2xl border border-slate-200 p-4 outline-none focus:border-slate-400"
-              placeholder="What tool do you wish existed? What daily problem wastes your time?"
-            />
-            <div className="flex flex-wrap gap-4">
-              <Link
-                href="/community"
-                className="rounded-2xl bg-slate-900 px-6 py-4 text-center text-white transition hover:bg-slate-800"
-              >
-                Open Community Ideas
-              </Link>
-              <button
-                type="submit"
-                className="rounded-2xl border border-slate-200 px-6 py-4 text-slate-700 transition hover:bg-slate-50"
-              >
-                Submit to Community
-              </button>
-            </div>
-          </form>
+          ) : null}
+          <HomePulseForm />
         </div>
       </section>
 

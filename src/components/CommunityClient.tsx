@@ -6,9 +6,13 @@ import {
   createCommunityIdea,
   voteOnIdea,
 } from "@/app/community/actions";
+import {
+  TurnstileField,
+  isTurnstileConfigured,
+} from "@/components/TurnstileField";
 import { getBrowserSupabase } from "@/lib/supabase/browser";
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useState, useTransition } from "react";
+import { useCallback, useMemo, useRef, useState, useTransition } from "react";
 
 type SortKey = "hot" | "new";
 
@@ -55,6 +59,9 @@ export function CommunityClient({ configured, initialIdeas }: Props) {
     {},
   );
   const [commentNames, setCommentNames] = useState<Record<string, string>>({});
+  const honeyRef = useRef<HTMLInputElement>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileOn = isTurnstileConfigured();
 
   const sorted = useMemo(() => {
     const rows = [...initialIdeas];
@@ -106,12 +113,22 @@ export function CommunityClient({ configured, initialIdeas }: Props) {
   const handleSubmitIdea = (e: React.FormEvent) => {
     e.preventDefault();
     setFeedback(null);
+    if (honeyRef.current?.value?.trim()) {
+      setFeedback("提交失败，请刷新页面后重试。");
+      return;
+    }
+    if (turnstileOn && !turnstileToken?.trim()) {
+      setFeedback("请先完成人机验证。");
+      return;
+    }
     startTransition(async () => {
       const res = await createCommunityIdea({
         title,
         body,
         authorName: authorName || undefined,
         authorEmail: authorEmail || undefined,
+        turnstileToken: turnstileToken ?? undefined,
+        websiteHoneypot: honeyRef.current?.value ?? "",
       });
       if (!res.ok) {
         setFeedback(res.error);
@@ -121,6 +138,7 @@ export function CommunityClient({ configured, initialIdeas }: Props) {
       setBody("");
       setAuthorName("");
       setAuthorEmail("");
+      setTurnstileToken(null);
       setFeedback("已提交，感谢分享。");
       router.refresh();
     });
@@ -258,6 +276,14 @@ export function CommunityClient({ configured, initialIdeas }: Props) {
         className="mt-10 grid gap-4 rounded-3xl border border-slate-200 bg-slate-50/80 p-8"
         onSubmit={handleSubmitIdea}
       >
+        <input
+          ref={honeyRef}
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+          aria-hidden
+          className="pointer-events-none absolute left-[-9999px] h-0 w-0 opacity-0"
+        />
         <h2 className="text-xl font-semibold">提交你的想法</h2>
         <input
           className="rounded-2xl border border-slate-200 bg-white p-4 outline-none focus:border-slate-400"
@@ -294,9 +320,10 @@ export function CommunityClient({ configured, initialIdeas }: Props) {
             disabled={pending}
           />
         </div>
+        <TurnstileField onTokenChange={setTurnstileToken} />
         <button
           type="submit"
-          disabled={pending}
+          disabled={pending || (turnstileOn && !turnstileToken)}
           className="rounded-2xl bg-slate-900 px-6 py-4 font-medium text-white transition hover:bg-slate-800 disabled:opacity-60"
         >
           {pending ? "提交中…" : "提交"}

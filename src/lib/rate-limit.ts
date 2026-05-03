@@ -52,3 +52,38 @@ export async function allowCommunityIdeaSubmission(
   }
   return { ok: true };
 }
+
+const COMMENT_WINDOW_MS = 60 * 60 * 1000;
+const DEFAULT_COMMENT_MAX = 25;
+
+function commentMaxPerWindow(): number {
+  const raw = process.env.COMMUNITY_COMMENT_RATE_LIMIT_MAX;
+  const n = raw ? Number.parseInt(raw, 10) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : DEFAULT_COMMENT_MAX;
+}
+
+/** Limit comments per browser client_id per hour to reduce spam threads. */
+export async function allowCommentSubmission(
+  supabase: SupabaseClient,
+  clientId: string,
+): Promise<{ ok: boolean }> {
+  const cid = clientId.trim().slice(0, 120);
+  if (!cid) return { ok: false };
+
+  const since = new Date(Date.now() - COMMENT_WINDOW_MS).toISOString();
+  const { count, error } = await supabase
+    .from("idea_comments")
+    .select("*", { count: "exact", head: true })
+    .eq("client_id", cid)
+    .gte("created_at", since);
+
+  if (error) {
+    console.error("[community] comment rate limit count", error.message);
+    return { ok: true };
+  }
+
+  if ((count ?? 0) >= commentMaxPerWindow()) {
+    return { ok: false };
+  }
+  return { ok: true };
+}

@@ -26,8 +26,16 @@ Open [http://localhost:3000](http://localhost:3000).
 | `RATE_LIMIT_IP_SALT` | Optional | Salt for hashed IP; defaults to `COMMUNITY_ADMIN_SECRET` |
 | `COMMUNITY_RATE_LIMIT_MAX` | Optional | Max idea submissions per IP hash per window (default `5`) |
 | `COMMUNITY_RATE_LIMIT_WINDOW_MS` | Optional | Window length in ms (default `3600000` = 1 hour) |
+| `COMMUNITY_COMMENT_RATE_LIMIT_MAX` | Optional | Max comments per browser ID per hour (default `25`) |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Vercel + `.env.local` | Cloudflare Turnstile **site** key (public) |
+| `TURNSTILE_SECRET_KEY` | Vercel only (server) | Turnstile **secret**; set together with site key to enforce |
+| `COMMUNITY_BLOCKED_SUBSTRINGS` | Optional | Extra comma-separated phrases to block (spam filter) |
 
 Copy `.env.example` to `.env.local` and see table above.
+
+### Anti-spam (community)
+
+Server-side: keyword / URL-density filter, optional env blocklist, IP-hash rate limits for new posts, per-browser rate limit for comments, honeypot fields on forms. When **both** Turnstile keys are set, homepage and `/community` idea forms require Cloudflare Turnstile before submit. Create a Turnstile widget in [Cloudflare Dashboard](https://dash.cloudflare.com/) → Turnstile → add site for `familymedvault.com`.
 
 ## Database
 

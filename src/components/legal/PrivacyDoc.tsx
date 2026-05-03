@@ -124,6 +124,23 @@ export function PrivacyDoc() {
               </li>
             </ul>
           </div>
+
+          <div>
+            <h3 className="font-semibold text-slate-900">
+              3.6 人机验证（Cloudflare Turnstile）
+            </h3>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+              <li>
+                <strong className="text-slate-800">用途：</strong>
+                区分真人访问与自动化脚本，降低垃圾信息与滥用提交。
+              </li>
+              <li>
+                <strong className="text-slate-800">处理者：</strong>
+                验证流程由 <strong className="text-slate-900">Cloudflare</strong>{" "}
+                提供；我们可能收到一次性通过与失败摘要，不将其用于广告画像。
+              </li>
+            </ul>
+          </div>
         </div>
       </section>
 
@@ -155,7 +172,9 @@ export function PrivacyDoc() {
         <h2 className="text-xl font-semibold text-slate-900">7. 第三方与子处理者</h2>
         <p>
           当前主要包括：<strong className="text-slate-900">Vercel</strong>（托管、可能的边缘与分析功能）、
-          <strong className="text-slate-900">Supabase</strong>（数据库）。基础设施可能涉及跨境处理；相关服务商各自受其条款约束，我们会在可行的范围内选择合规选项。
+          <strong className="text-slate-900">Supabase</strong>（数据库）、
+          <strong className="text-slate-900">Cloudflare</strong>（Turnstile
+          人机验证）。基础设施可能涉及跨境处理；相关服务商各自受其条款约束，我们会在可行的范围内选择合规选项。
         </p>
       </section>
 
@@ -218,7 +237,8 @@ export function PrivacyDoc() {
           FamilyMedVault is operated by an <strong>individual developer</strong>. This policy describes
           categories of data processed on familymedvault.com (usage/diagnostics via hosting such as
           Vercel; optional contact info and community content stored with Supabase; browser-local
-          identifiers for votes/comments; salted hashes for abuse prevention). We do{" "}
+          identifiers for votes/comments; salted hashes for abuse prevention; Cloudflare Turnstile
+          when enabled). We do{" "}
           <strong>not</strong> sell personal information for cross-context behavioural advertising as
           commonly understood, and we do not use site data for cross-app tracking for third-party ads.
           Contact{" "}
