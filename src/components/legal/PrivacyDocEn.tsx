@@ -50,6 +50,15 @@ export function PrivacyDocEn() {
           health-related data you choose to store is processed to provide the
           service; we do not sell your personal data.
         </p>
+        <p className="mt-4 rounded-xl border border-teal-100 bg-teal-50/60 px-4 py-3 text-sm">
+          <strong className="text-slate-900">Cookies &amp; analytics:</strong>{" "}
+          We use <strong className="text-slate-900">Vercel Analytics</strong> for
+          aggregate traffic insight (e.g. page views). We do not show a separate
+          cookie consent banner on the marketing site. If you are in a
+          jurisdiction with specific requirements for analytics or cookies, see
+          this policy and Vercel&apos;s current documentation, and consider
+          professional advice where appropriate.
+        </p>
       </section>
 
       <section className="space-y-3">

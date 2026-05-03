@@ -172,12 +172,6 @@
     "description": "This page does not exist or the link may be wrong.",
     "home": "Back to home"
   },
-  "cookieBanner": {
-    "message": "We use essential cookies to run the site and Vercel Analytics to measure traffic. By accepting, you agree to analytics as described in our Privacy Policy. Choose \"Essential only\" to disable analytics.",
-    "accept": "Accept",
-    "essential": "Essential only",
-    "privacy": "Privacy Policy"
-  },
   "privacyPage": {
     "title": "Privacy Policy",
     "metaDesc": "How FamilyMedVault handles data on the website and in the app — transparency for visitors and users.",

@@ -2,7 +2,6 @@ import { AdminLoginForm } from "@/app/[locale]/community/admin/AdminLoginForm";
 import { AdminPanel } from "@/app/[locale]/community/admin/AdminPanel";
 import { fetchCommunityIdeas } from "@/app/community/data";
 import { verifyCommunityAdminSession } from "@/lib/admin-session";
-import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
 import { Link } from "@/i18n/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
@@ -33,61 +32,49 @@ export default async function CommunityAdminPage(props: {
 
   if (!hasSecret) {
     return (
-      <div className="min-h-screen bg-white text-slate-900">
-        <SiteHeader />
-        <main className="mx-auto max-w-3xl px-6 py-16">
-          <p className="font-medium text-slate-900">{t("disabledTitle")}</p>
-          <p className="mt-2 text-slate-600">{t("disabledBody")}</p>
-          <p className="mt-4">
-            <Link
-              href="/community"
-              className="text-teal-800 underline-offset-2 hover:underline"
-            >
-              {t("backCommunity")}
-            </Link>
-          </p>
-        </main>
-        <SiteFooter />
-      </div>
+      <main className="mx-auto max-w-3xl px-6 py-16">
+        <p className="font-medium text-slate-900">{t("disabledTitle")}</p>
+        <p className="mt-2 text-slate-600">{t("disabledBody")}</p>
+        <p className="mt-4">
+          <Link
+            href="/community"
+            className="text-teal-800 underline-offset-2 hover:underline"
+          >
+            {t("backCommunity")}
+          </Link>
+        </p>
+      </main>
     );
   }
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-white text-slate-900">
-        <SiteHeader />
-        <main className="mx-auto max-w-3xl px-6 py-16">
-          <AdminLoginForm error={searchParams.err === "1"} />
-          <p className="mx-auto mt-8 max-w-sm text-center text-sm text-slate-500">
-            <Link
-              href="/community"
-              className="text-teal-800 underline-offset-2 hover:underline"
-            >
-              {t("backCommunity")}
-            </Link>
-          </p>
-        </main>
-        <SiteFooter />
-      </div>
+      <main className="mx-auto max-w-3xl px-6 py-16">
+        <AdminLoginForm error={searchParams.err === "1"} />
+        <p className="mx-auto mt-8 max-w-sm text-center text-sm text-slate-500">
+          <Link
+            href="/community"
+            className="text-teal-800 underline-offset-2 hover:underline"
+          >
+            {t("backCommunity")}
+          </Link>
+        </p>
+      </main>
     );
   }
 
   const { ideas, configured } = await fetchCommunityIdeas();
 
   return (
-    <div className="min-h-screen bg-white text-slate-900">
-      <SiteHeader />
-      <main className="mx-auto max-w-4xl px-6 py-16">
-        <h1 className="text-2xl font-bold text-slate-900">{t("pageTitle")}</h1>
-        {!configured ? (
-          <p className="mt-4 text-slate-600">{t("errors.supabaseIdeas")}</p>
-        ) : (
-          <div className="mt-8">
-            <AdminPanel ideas={ideas} />
-          </div>
-        )}
-      </main>
-      <SiteFooter />
-    </div>
+    <main className="mx-auto max-w-4xl px-6 py-16">
+      <h1 className="text-2xl font-bold text-slate-900">{t("pageTitle")}</h1>
+      {!configured ? (
+        <p className="mt-4 text-slate-600">{t("errors.supabaseIdeas")}</p>
+      ) : (
+        <div className="mt-8">
+          <AdminPanel ideas={ideas} />
+        </div>
+      )}
+    </main>
   );
 }

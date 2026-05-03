@@ -1,7 +1,6 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { PrivacyDoc } from "@/components/legal/PrivacyDoc";
 import { PrivacyDocEn } from "@/components/legal/PrivacyDocEn";
-import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
 import { Link } from "@/i18n/navigation";
 import {
   buildAlternates,
@@ -53,21 +52,17 @@ export default async function PrivacyPage({
   const t = await getTranslations("privacyPage");
 
   return (
-    <div className="min-h-screen bg-white text-slate-900">
-      <SiteHeader />
-      <main className="mx-auto max-w-3xl px-6 py-16">
-        <h1 className="text-3xl font-bold text-slate-900">{t("title")}</h1>
-        <p className="mt-2 text-sm text-slate-500">{t("updated")}</p>
-        <div className="mt-10">
-          {locale === "zh" ? <PrivacyDoc /> : <PrivacyDocEn />}
-        </div>
-        <p className="mt-10">
-          <Link href="/" className="text-teal-800 underline-offset-2 hover:underline">
-            {t("back")}
-          </Link>
-        </p>
-      </main>
-      <SiteFooter />
-    </div>
+    <main className="mx-auto max-w-3xl px-6 py-16">
+      <h1 className="text-3xl font-bold text-slate-900">{t("title")}</h1>
+      <p className="mt-2 text-sm text-slate-500">{t("updated")}</p>
+      <div className="mt-10">
+        {locale === "zh" ? <PrivacyDoc /> : <PrivacyDocEn />}
+      </div>
+      <p className="mt-10">
+        <Link href="/" className="text-teal-800 underline-offset-2 hover:underline">
+          {t("back")}
+        </Link>
+      </p>
+    </main>
   );
 }

@@ -3,9 +3,9 @@ import { getMessages, setRequestLocale } from "next-intl/server";
 import { hasLocale } from "next-intl";
 import { Noto_Sans_SC } from "next/font/google";
 import { notFound } from "next/navigation";
-import { CookieBanner } from "@/components/CookieBanner";
 import { HtmlLang } from "@/components/HtmlLang";
 import { JsonLd } from "@/components/JsonLd";
+import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
 import { routing } from "@/i18n/routing";
 
 const notoSansSc = Noto_Sans_SC({
@@ -43,9 +43,12 @@ export default async function LocaleLayout({ children, params }: Props) {
             : "min-w-0"
         }
       >
-        {children}
+        <div className="flex min-h-screen flex-col bg-white text-slate-900">
+          <SiteHeader />
+          <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+          <SiteFooter />
+        </div>
       </div>
-      <CookieBanner />
     </NextIntlClientProvider>
   );
 }

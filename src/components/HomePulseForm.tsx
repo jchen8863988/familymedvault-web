@@ -1,15 +1,26 @@
 "use client";
 
 import { submitHomePulse } from "@/app/community/actions";
-import { TurnstileField, isTurnstileConfigured } from "@/components/TurnstileField";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
 
-export function HomePulseForm() {
+type Props = {
+  /** When false, same as /community: show setup instructions instead of a form that cannot succeed. */
+  configured: boolean;
+};
+
+export function HomePulseForm({ configured }: Props) {
   const t = useTranslations("pulseForm");
-  const [token, setToken] = useState<string | null>(null);
-  const turnstileOn = isTurnstileConfigured();
+  const tSetup = useTranslations("communityClient");
+
+  if (!configured) {
+    return (
+      <div className="mt-10 rounded-2xl border border-amber-200 bg-amber-50 px-6 py-4 text-left text-sm text-amber-950">
+        <p className="font-medium">{tSetup("notConfiguredTitle")}</p>
+        <p className="mt-2 text-amber-900/90">{tSetup("notConfiguredBody")}</p>
+      </div>
+    );
+  }
 
   return (
     <form className="mt-10 grid gap-4 text-left" action={submitHomePulse}>
@@ -41,10 +52,6 @@ export function HomePulseForm() {
         className="min-h-[180px] rounded-2xl border border-slate-200 p-4 outline-none focus:border-slate-400"
         placeholder={t("messagePh")}
       />
-      <TurnstileField onTokenChange={setToken} />
-      {turnstileOn ? (
-        <input type="hidden" name="cf-turnstile-response" value={token ?? ""} />
-      ) : null}
       <div className="flex flex-wrap gap-4">
         <Link
           href="/community"
@@ -54,8 +61,7 @@ export function HomePulseForm() {
         </Link>
         <button
           type="submit"
-          disabled={turnstileOn && !token}
-          className="rounded-2xl border border-slate-200 px-6 py-4 text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-2xl border border-slate-200 px-6 py-4 text-slate-700 transition hover:bg-slate-50"
         >
           {t("submit")}
         </button>

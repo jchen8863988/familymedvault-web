@@ -307,7 +307,7 @@ export function CommunityClient({ configured, initialIdeas }: Props) {
         <TurnstileField onTokenChange={setTurnstileToken} />
         <button
           type="submit"
-          disabled={pending || (turnstileOn && !turnstileToken)}
+          disabled={pending}
           className="rounded-2xl bg-slate-900 px-6 py-4 font-medium text-white transition hover:bg-slate-800 disabled:opacity-60"
         >
           {pending ? t("submitting") : t("submit")}

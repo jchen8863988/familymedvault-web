@@ -1,7 +1,6 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { fetchCommunityIdeas } from "@/app/community/data";
 import { CommunityClient } from "@/components/CommunityClient";
-import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
 import { Link } from "@/i18n/navigation";
 import {
   buildAlternates,
@@ -62,9 +61,7 @@ export default async function CommunityPage({
   const tags = t.raw("tags") as string[];
 
   return (
-    <div className="min-h-screen bg-white text-slate-900">
-      <SiteHeader />
-
+    <>
       <div className="mx-auto max-w-4xl px-6 py-16">
         {showSubmitted ? (
           <p
@@ -103,8 +100,6 @@ export default async function CommunityPage({
           </p>
         </div>
       </section>
-
-      <SiteFooter />
-    </div>
+    </>
   );
 }

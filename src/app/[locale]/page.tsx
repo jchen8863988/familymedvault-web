@@ -1,12 +1,12 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { HomePulseForm } from "@/components/HomePulseForm";
-import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
 import { Link } from "@/i18n/navigation";
 import {
   buildAlternates,
   openGraphLocales,
   type SeoPath,
 } from "@/lib/seo";
+import { isSupabaseConfigured } from "@/lib/supabase/public";
 
 /** Set when the app is live on the App Store, e.g. https://apps.apple.com/app/idXXXXXXXX */
 const APP_STORE_URL: string | null = null;
@@ -71,6 +71,7 @@ export default async function HomePage({
   const t = await getTranslations("home");
   const tp = await getTranslations("pulse");
   const pulseMsg = pulseKey ? tp(pulseKey) : null;
+  const supabaseConfigured = isSupabaseConfigured();
 
   const bullets = t.raw("bullets") as string[];
   const visualCards = t.raw("visualCards") as string[];
@@ -78,9 +79,7 @@ export default async function HomePage({
   const shipCards = t.raw("shipCards") as { title: string; desc: string }[];
 
   return (
-    <div className="min-h-screen bg-white text-slate-900">
-      <SiteHeader />
-
+    <>
       <section className="mx-auto grid max-w-6xl items-center gap-10 px-6 py-20 md:grid-cols-2">
         <div>
           <p className="text-sm font-medium uppercase tracking-wide text-teal-700">
@@ -166,7 +165,7 @@ export default async function HomePage({
               {pulseMsg}
             </p>
           ) : null}
-          <HomePulseForm />
+          <HomePulseForm configured={supabaseConfigured} />
         </div>
       </section>
 
@@ -216,8 +215,6 @@ export default async function HomePage({
           </div>
         </div>
       </section>
-
-      <SiteFooter />
-    </div>
+    </>
   );
 }

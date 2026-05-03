@@ -45,6 +45,14 @@ export function PrivacyDoc() {
           开发者文档中「数据类型」思路一致的划分）；我们不会超出所述目的使用这些信息。
         </p>
 
+        <div className="rounded-xl border border-teal-100 bg-teal-50/60 px-4 py-3 text-sm text-slate-800">
+          <p className="font-semibold text-slate-900">Cookie 与访问统计</p>
+          <p className="mt-2">
+            本网站通过 <strong className="text-slate-900">Vercel Analytics</strong> 了解汇总层面的访问情况（例如页面浏览），未再单独展示同意横幅。若您位于对分析或 Cookie
+            有特别要求的法域，请以本政策与 Vercel 现行说明为准，必要时可咨询专业人士。
+          </p>
+        </div>
+
         <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
           <div>
             <h3 className="font-semibold text-slate-900">3.1 使用数据与诊断（Usage & diagnostics）</h3>
@@ -132,7 +140,7 @@ export function PrivacyDoc() {
             <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
               <li>
                 <strong className="text-slate-800">用途：</strong>
-                区分真人访问与自动化脚本，降低垃圾信息与滥用提交。
+                在已开启配置时，于<strong className="text-slate-900">社区相关提交</strong>等场景区分真人与自动化脚本，降低垃圾信息与滥用；首页快速留言不经过 Turnstile。
               </li>
               <li>
                 <strong className="text-slate-800">处理者：</strong>

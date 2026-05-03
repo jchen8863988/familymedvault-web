@@ -15,6 +15,10 @@ import {
 } from "@/lib/spam-filter";
 import { createPublicSupabase } from "@/lib/supabase/public";
 import { verifyTurnstileToken } from "@/lib/turnstile";
+import {
+  notifyNewCommunityIdea,
+  notifyNewIdeaComment,
+} from "@/lib/email/community-notify";
 
 export type ActionResult =
   | { ok: true }
@@ -51,6 +55,8 @@ async function runCreateIdea(input: {
   authorEmail?: string;
   turnstileToken?: string;
   websiteHoneypot?: string;
+  /** Homepage pulse form skips Turnstile; community keeps verification when enforced. */
+  skipTurnstileVerification?: boolean;
 }): Promise<{ ok: true } | { ok: false; code: IdeaErrorCode }> {
   if (input.websiteHoneypot?.trim()) {
     return { ok: false, code: "honeyFailed" };
@@ -77,9 +83,11 @@ async function runCreateIdea(input: {
     };
   }
 
-  const turned = await verifyTurnstileToken(input.turnstileToken);
-  if (!turned.ok) {
-    return { ok: false, code: "turnstileFailed" };
+  if (!input.skipTurnstileVerification) {
+    const turned = await verifyTurnstileToken(input.turnstileToken);
+    if (!turned.ok) {
+      return { ok: false, code: "turnstileFailed" };
+    }
   }
 
   const supabase = createPublicSupabase();
@@ -95,20 +103,37 @@ async function runCreateIdea(input: {
     }
   }
 
-  const { error } = await supabase.from("community_ideas").insert({
-    title,
-    body,
-    author_name: authorName || null,
-    author_email: authorEmail || null,
-    submitter_ip_hash: ipHash,
-  });
+  const { data: inserted, error } = await supabase
+    .from("community_ideas")
+    .insert({
+      title,
+      body,
+      author_name: authorName || null,
+      author_email: authorEmail || null,
+      submitter_ip_hash: ipHash,
+    })
+    .select("id")
+    .single();
 
-  if (error) {
-    console.error("[community] insert idea", error.message);
+  if (error || !inserted?.id) {
+    console.error("[community] insert idea", error?.message ?? "no id");
     return { ok: false, code: "submitFailed" };
   }
 
   revalidateCommunityRoutes();
+
+  try {
+    await notifyNewCommunityIdea({
+      id: inserted.id,
+      title,
+      body,
+      authorName: authorName || undefined,
+      authorEmail: authorEmail || undefined,
+    });
+  } catch (e) {
+    console.error("[community] notify email after idea", e);
+  }
+
   return { ok: true };
 }
 
@@ -220,6 +245,17 @@ export async function addIdeaComment(input: {
   }
 
   revalidateCommunityRoutes();
+
+  try {
+    await notifyNewIdeaComment({
+      ideaId: input.ideaId,
+      commentBody: body,
+      authorName: authorName || undefined,
+    });
+  } catch (e) {
+    console.error("[community] notify email after comment", e);
+  }
+
   return { ok: true };
 }
 
@@ -234,7 +270,6 @@ export async function submitHomePulse(formData: FormData) {
   const message = String(formData.get("message") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
-  const turnstileToken = String(formData.get("cf-turnstile-response") ?? "");
 
   if (!message) {
     redirect({ href: "/?pulse=empty#community", locale });
@@ -246,7 +281,7 @@ export async function submitHomePulse(formData: FormData) {
     body: message,
     authorName: name || undefined,
     authorEmail: email || undefined,
-    turnstileToken: turnstileToken || undefined,
+    skipTurnstileVerification: true,
   });
   if (!result.ok) {
     const pulse = ideaCodeToPulse(result.code);

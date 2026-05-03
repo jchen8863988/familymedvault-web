@@ -31,8 +31,33 @@ Open [http://localhost:3000](http://localhost:3000).
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Vercel + `.env.local` | Cloudflare Turnstile **site** key (public) |
 | `TURNSTILE_SECRET_KEY` | Vercel only (server) | Turnstile **secret**; set together with site key to enforce |
 | `COMMUNITY_BLOCKED_SUBSTRINGS` | Optional | Extra comma-separated phrases to block (spam filter) |
+| `RESEND_API_KEY` | Vercel only (server) | [Resend](https://resend.com) API key for community email alerts |
+| `RESEND_FROM_EMAIL` | Vercel only (server) | Verified sender, e.g. `FamilyMedVault <noreply@yourdomain.com>` |
+| `COMMUNITY_NOTIFY_EMAIL` | Vercel only (server) | Comma-separated admin addresses — **new idea** and **new comment** alerts |
+| `COMMUNITY_NOTIFY_AUTHOR` | Optional | Set `0` or `false` to skip automatic **submission receipt** to the poster’s email |
 
 Copy `.env.example` to `.env.local` and see table above.
+
+### Required vs optional: community + mail (落地行为)
+
+This is **implemented in code** — not something left to configure elsewhere.
+
+| Situation | Community (post / vote / comment) | Email (Resend) |
+| --- | --- | --- |
+| **`NEXT_PUBLIC_SUPABASE_URL` or `NEXT_PUBLIC_SUPABASE_ANON_KEY` missing** | **Unavailable.** `/community` and the home Pulse block show setup instructions (`CommunityClient` / `HomePulseForm`). Server actions return `supabaseNotConfigured` (`createCommunityIdea`, `voteOnIdea`, `addIdeaComment`). | N/A — nothing is persisted without Supabase. |
+| **Supabase OK; `RESEND_API_KEY` missing** (or no usable sender) | **Works** — rows insert normally. | **No mail** — `notifyNewCommunityIdea` / `notifyNewIdeaComment` return immediately; posting **still succeeds**. |
+| **Supabase OK; Resend OK; `COMMUNITY_NOTIFY_EMAIL` empty** | Works. | Admin alerts skipped (warning once per deploy in logs); optional author receipt may still send if poster left email and Resend is configured. |
+
+### Community email (Resend)
+
+When `RESEND_API_KEY` and `RESEND_FROM_EMAIL` are set, successful **idea** submissions trigger:
+
+1. **Admin alert** to every address in `COMMUNITY_NOTIFY_EMAIL` (subject includes title snippet).
+2. **Optional receipt** to the poster if they entered an email — disable with `COMMUNITY_NOTIFY_AUTHOR=0`.
+
+**Comments** on an idea also email admins (same `COMMUNITY_NOTIFY_EMAIL`) when configured.
+
+Without `RESEND_API_KEY`, behavior is unchanged (posts still save; no mail). If the key is set, **API errors are logged to the server** (Resend does not throw); check Vercel **Functions** logs if mail does not arrive. Set `RESEND_FROM_EMAIL` to a **verified domain** address for production. If `RESEND_FROM_EMAIL` is omitted, the app falls back to Resend’s `onboarding@resend.dev` (strict delivery rules — see [Resend docs](https://resend.com/docs)). `COMMUNITY_NOTIFY_EMAIL` must list at least one admin address or admin alerts are skipped (warning once per deploy).
 
 ### Anti-spam (community)
 
@@ -45,7 +70,7 @@ Server-side: keyword / URL-density filter, optional env blocklist, IP-hash rate 
 | 配置 | 页面上的控件 | 服务端校验 |
 | --- | --- | --- |
 | **两个都没有**，或只配了其中一个 | 无 Turnstile | **不校验**（与升级前一致） |
-| **同时**配置了 Site Key + Secret | 首页「Tell us…」区块与 `/community` 发帖表单会显示 Turnstile | **会校验** token；未通过则不能提交 |
+| **同时**配置了 Site Key + Secret | **`/community` 发帖表单**会显示 Turnstile（首页「Tell us…」区块不再加载人机验证，减轻首页负担） | **社区发帖**会校验 token；未通过则不能提交 |
 
 说明：**必须两个变量都配齐**才会 enforced。只配 `NEXT_PUBLIC_TURNSTILE_SITE_KEY` 可能出现「有控件但服务端仍不强制」的不一致，请始终同时添加两项。
 
@@ -82,7 +107,7 @@ Server-side: keyword / URL-density filter, optional env blocklist, IP-hash rate 
 **步骤 3 — 重新部署**
 
 1. 在 Vercel 项目页打开 **Deployments**，对最新部署点击 **⋯** → **Redeploy**（或在本地提交一次空 commit 触发构建）。
-2. 部署完成后访问线上首页与 `/community`，应能看到 Turnstile；提交一次确认能通过。
+2. 部署完成后访问 **`/community`**，应能看到 Turnstile；发帖提交一次确认能通过。
 
 **本地开发（可选）**
 
@@ -103,17 +128,13 @@ Do not share the admin URL or secret publicly.
 
 ## Analytics
 
-The app includes `@vercel/analytics`. In the Vercel project, enable **Analytics** under the project tab so page views are collected in production.
+The app includes `@vercel/analytics` in the root layout (no cookie banner). In the Vercel project, enable **Analytics** so page views are collected in production.
 
 ## SEO
 
 `src/app/sitemap.ts` and `src/app/robots.ts` serve `/sitemap.xml` and `/robots.txt`. Optional **`NEXT_PUBLIC_SITE_URL`** (no trailing slash) overrides the default host in `src/lib/seo.ts` for sitemap, `robots`, canonical URLs, and JSON-LD — keep it aligned with `metadataBase` in `src/app/layout.tsx`.
 
 Indexed routes emit **`alternates.canonical`**, **`alternates.languages`** (`en`, `zh-CN`, `x-default`), and **`openGraph` / `twitter`** per locale on the home, community, privacy, and terms pages. **`JsonLd`** outputs Organization + WebSite schema.
-
-## Cookies & analytics
-
-A **cookie banner** (`CookieBanner`) explains analytics and links to Privacy. **Vercel Analytics** loads only after the user chooses **Accept** (`localStorage` key `fmv_cookie_consent` = `all`). **Essential only** disables analytics (site still runs).
 
 ## i18n proxy (Next.js 16)
 
