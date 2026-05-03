@@ -23,7 +23,10 @@ export function SiteHeader() {
   );
 }
 
+const CONTACT_EMAIL = "hello@familymedvault.com";
+
 export function SiteFooter() {
+  const mailto = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent("FamilyMedVault 官网咨询")}`;
   return (
     <footer className="border-t border-slate-100 py-10 text-center text-sm text-slate-500">
       <p>
@@ -35,6 +38,14 @@ export function SiteFooter() {
         <Link href="/terms" className="underline-offset-2 hover:underline">
           Terms
         </Link>
+      </p>
+      <p className="mt-3">
+        <a
+          href={mailto}
+          className="font-medium text-teal-800 underline-offset-2 hover:underline"
+        >
+          {CONTACT_EMAIL}
+        </a>
       </p>
     </footer>
   );
