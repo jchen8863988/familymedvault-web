@@ -6,13 +6,14 @@ import {
   logoutCommunityAdmin,
   togglePinCommunityIdea,
 } from "@/app/community/admin-actions";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 
 type Props = { ideas: CommunityIdeaRow[] };
 
 export function AdminPanel({ ideas: initialIdeas }: Props) {
+  const t = useTranslations("admin");
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -23,7 +24,7 @@ export function AdminPanel({ ideas: initialIdeas }: Props) {
     startTransition(async () => {
       const r = await fn();
       if (!r.ok) {
-        setFeedback(r.error ?? "操作失败");
+        setFeedback(r.error ?? t("errors.pinFailed"));
         return;
       }
       router.refresh();
@@ -33,20 +34,20 @@ export function AdminPanel({ ideas: initialIdeas }: Props) {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h2 className="text-lg font-semibold text-slate-900">帖子列表</h2>
+        <h2 className="text-lg font-semibold text-slate-900">{t("listTitle")}</h2>
         <div className="flex flex-wrap gap-2">
           <Link
             href="/community"
             className="rounded-xl border border-slate-200 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
           >
-            返回社区
+            {t("backCommunity")}
           </Link>
           <form action={logoutCommunityAdmin}>
             <button
               type="submit"
               className="rounded-xl border border-slate-200 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
             >
-              退出登录
+              {t("logout")}
             </button>
           </form>
         </div>
@@ -57,7 +58,7 @@ export function AdminPanel({ ideas: initialIdeas }: Props) {
         </p>
       ) : null}
       {ideas.length === 0 ? (
-        <p className="text-sm text-slate-600">暂无帖子。</p>
+        <p className="text-sm text-slate-600">{t("empty")}</p>
       ) : (
         <ul className="space-y-4">
           {ideas.map((item) => (
@@ -70,7 +71,7 @@ export function AdminPanel({ ideas: initialIdeas }: Props) {
                   <p className="font-medium text-slate-900">
                     {item.pinned ? (
                       <span className="mr-2 rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-900">
-                        置顶
+                        {t("pin")}
                       </span>
                     ) : null}
                     {item.title}
@@ -103,18 +104,14 @@ export function AdminPanel({ ideas: initialIdeas }: Props) {
                       });
                     }}
                   >
-                    {item.pinned ? "取消置顶" : "置顶"}
+                    {item.pinned ? t("unpin") : t("pin")}
                   </button>
                   <button
                     type="button"
                     disabled={pending}
                     className="rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-sm text-red-800 hover:bg-red-100 disabled:opacity-50"
                     onClick={() => {
-                      if (
-                        !confirm(
-                          "确定删除该帖？关联的点赞与评论将一并删除，且不可恢复。",
-                        )
-                      ) {
+                      if (!confirm(t("confirmDelete"))) {
                         return;
                       }
                       run(async () => {
@@ -128,7 +125,7 @@ export function AdminPanel({ ideas: initialIdeas }: Props) {
                       });
                     }}
                   >
-                    删除
+                    {t("delete")}
                   </button>
                 </div>
               </div>

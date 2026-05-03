@@ -30,10 +30,13 @@ function urlSpamScore(text: string): number {
   return m?.length ?? 0;
 }
 
-export function checkCommunitySpam(...chunks: string[]): {
-  ok: boolean;
-  reason?: string;
-} {
+export type SpamRejectReason = "phrase" | "links";
+
+export function checkCommunitySpam(
+  ...chunks: string[]
+):
+  | { ok: true }
+  | { ok: false; reason: SpamRejectReason } {
   const combined = chunks
     .filter(Boolean)
     .join("\n")
@@ -42,20 +45,14 @@ export function checkCommunitySpam(...chunks: string[]): {
   const phrases = [...DEFAULT_BLOCKED_PHRASES, ...extraPhrasesFromEnv()];
   for (const p of phrases) {
     if (p.length >= 4 && combined.includes(p)) {
-      return {
-        ok: false,
-        reason: "内容疑似垃圾推广或不符合社区规范，已被拦截。",
-      };
+      return { ok: false, reason: "phrase" };
     }
   }
 
   const urls = urlSpamScore(combined);
   const len = combined.length || 1;
   if (urls >= 4 || (urls >= 3 && len < 400)) {
-    return {
-      ok: false,
-      reason: "链接过多，疑似推广内容，已被拦截。如需反馈请减少外链或改用文字描述。",
-    };
+    return { ok: false, reason: "links" };
   }
 
   return { ok: true };

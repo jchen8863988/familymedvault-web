@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Analytics } from "@vercel/analytics/next";
+import { ConditionalAnalytics } from "@/components/ConditionalAnalytics";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -52,7 +52,7 @@ export default function RootLayout({
     >
       <body className="flex min-h-full flex-col">
         {children}
-        <Analytics />
+        <ConditionalAnalytics />
       </body>
     </html>
   );

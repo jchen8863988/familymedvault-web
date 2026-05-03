@@ -1,8 +1,9 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateCommunityRoutes } from "@/lib/revalidate-i18n";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+import { getLocale, getTranslations } from "next-intl/server";
+import { redirect } from "@/i18n/navigation";
 import {
   allowCommentSubmission,
   allowCommunityIdeaSubmission,
@@ -19,6 +20,17 @@ export type ActionResult =
   | { ok: true }
   | { ok: false; error: string };
 
+type IdeaErrorCode =
+  | "honeyFailed"
+  | "emptyFields"
+  | "invalidEmail"
+  | "spamPhrase"
+  | "spamLinks"
+  | "turnstileFailed"
+  | "supabaseNotConfigured"
+  | "rateLimited"
+  | "submitFailed";
+
 async function clientIpHash(): Promise<string | null> {
   try {
     const h = await headers();
@@ -32,18 +44,16 @@ async function clientIpHash(): Promise<string | null> {
   }
 }
 
-export async function createCommunityIdea(input: {
+async function runCreateIdea(input: {
   title: string;
   body: string;
   authorName?: string;
   authorEmail?: string;
-  /** Cloudflare Turnstile token when enforcement is enabled */
   turnstileToken?: string;
-  /** Honeypot — must be empty for humans */
   websiteHoneypot?: string;
-}): Promise<ActionResult> {
+}): Promise<{ ok: true } | { ok: false; code: IdeaErrorCode }> {
   if (input.websiteHoneypot?.trim()) {
-    return { ok: false, error: "提交失败，请刷新页面后重试。" };
+    return { ok: false, code: "honeyFailed" };
   }
 
   const title = input.title.trim().slice(0, 200);
@@ -52,36 +62,36 @@ export async function createCommunityIdea(input: {
   const authorName = input.authorName?.trim() ?? "";
 
   if (!title || !body) {
-    return { ok: false, error: "标题与正文不能为空。" };
+    return { ok: false, code: "emptyFields" };
   }
 
   if (!isValidOptionalEmail(authorEmail)) {
-    return { ok: false, error: "邮箱格式不正确。" };
+    return { ok: false, code: "invalidEmail" };
   }
 
   const spam = checkCommunitySpam(title, body, authorEmail, authorName);
   if (!spam.ok) {
-    return { ok: false, error: spam.reason ?? "内容未通过审核。" };
+    return {
+      ok: false,
+      code: spam.reason === "links" ? "spamLinks" : "spamPhrase",
+    };
   }
 
   const turned = await verifyTurnstileToken(input.turnstileToken);
   if (!turned.ok) {
-    return {
-      ok: false,
-      error: "人机验证未通过，请完成验证后重试。",
-    };
+    return { ok: false, code: "turnstileFailed" };
   }
 
   const supabase = createPublicSupabase();
   if (!supabase) {
-    return { ok: false, error: "Supabase is not configured." };
+    return { ok: false, code: "supabaseNotConfigured" };
   }
 
   const ipHash = await clientIpHash();
   if (ipHash) {
     const rate = await allowCommunityIdeaSubmission(supabase, ipHash);
     if (!rate.ok) {
-      return { ok: false, error: "提交过于频繁，请稍后再试。" };
+      return { ok: false, code: "rateLimited" };
     }
   }
 
@@ -95,27 +105,57 @@ export async function createCommunityIdea(input: {
 
   if (error) {
     console.error("[community] insert idea", error.message);
-    return { ok: false, error: "提交失败，请稍后再试。" };
+    return { ok: false, code: "submitFailed" };
   }
 
-  revalidatePath("/community");
-  revalidatePath("/");
+  revalidateCommunityRoutes();
   return { ok: true };
+}
+
+function ideaCodeToPulse(code: IdeaErrorCode): string {
+  const map: Record<IdeaErrorCode, string> = {
+    honeyFailed: "blocked",
+    emptyFields: "error",
+    invalidEmail: "invalid",
+    spamPhrase: "spam",
+    spamLinks: "spam",
+    turnstileFailed: "verify",
+    supabaseNotConfigured: "error",
+    rateLimited: "rate",
+    submitFailed: "error",
+  };
+  return map[code] ?? "error";
+}
+
+export async function createCommunityIdea(input: {
+  title: string;
+  body: string;
+  authorName?: string;
+  authorEmail?: string;
+  turnstileToken?: string;
+  websiteHoneypot?: string;
+}): Promise<ActionResult> {
+  const t = await getTranslations("community.errors");
+  const r = await runCreateIdea(input);
+  if (r.ok) return { ok: true };
+  const key = r.code;
+  return { ok: false, error: t(key) };
 }
 
 export async function voteOnIdea(input: {
   ideaId: string;
   clientId: string;
 }): Promise<ActionResult & { duplicate?: boolean }> {
+  const t = await getTranslations("community.errors");
   const supabase = createPublicSupabase();
   if (!supabase) {
-    return { ok: false, error: "Supabase is not configured." };
+    return { ok: false, error: t("supabaseNotConfigured") };
   }
 
   const ideaId = input.ideaId.trim();
   const clientId = input.clientId.trim().slice(0, 120);
   if (!ideaId || !clientId) {
-    return { ok: false, error: "Invalid vote." };
+    return { ok: false, error: t("invalidVote") };
   }
 
   const { error } = await supabase.from("idea_votes").insert({
@@ -128,10 +168,10 @@ export async function voteOnIdea(input: {
       return { ok: true, duplicate: true };
     }
     console.error("[community] vote", error.message);
-    return { ok: false, error: "点赞失败，请稍后再试。" };
+    return { ok: false, error: t("voteFailed") };
   }
 
-  revalidatePath("/community");
+  revalidateCommunityRoutes();
   return { ok: true };
 }
 
@@ -141,26 +181,30 @@ export async function addIdeaComment(input: {
   authorName?: string;
   clientId: string;
 }): Promise<ActionResult> {
+  const t = await getTranslations("community.errors");
   const supabase = createPublicSupabase();
   if (!supabase) {
-    return { ok: false, error: "Supabase is not configured." };
+    return { ok: false, error: t("supabaseNotConfigured") };
   }
 
   const body = input.body.trim().slice(0, 2000);
   const clientId = input.clientId.trim().slice(0, 120);
   const authorName = input.authorName?.trim() ?? "";
   if (!input.ideaId || !body || !clientId) {
-    return { ok: false, error: "评论内容不能为空。" };
+    return { ok: false, error: t("emptyComment") };
   }
 
   const spam = checkCommunitySpam(body, authorName);
   if (!spam.ok) {
-    return { ok: false, error: spam.reason ?? "评论未通过审核。" };
+    return {
+      ok: false,
+      error: t(spam.reason === "links" ? "spamLinks" : "spamPhrase"),
+    };
   }
 
   const rate = await allowCommentSubmission(supabase, clientId);
   if (!rate.ok) {
-    return { ok: false, error: "评论过于频繁，请稍后再试。" };
+    return { ok: false, error: t("commentRateLimited") };
   }
 
   const { error } = await supabase.from("idea_comments").insert({
@@ -172,18 +216,19 @@ export async function addIdeaComment(input: {
 
   if (error) {
     console.error("[community] comment", error.message);
-    return { ok: false, error: "评论失败，请稍后再试。" };
+    return { ok: false, error: t("commentFailed") };
   }
 
-  revalidatePath("/community");
+  revalidateCommunityRoutes();
   return { ok: true };
 }
 
 /** Homepage #community quick form → same `community_ideas` table. */
 export async function submitHomePulse(formData: FormData) {
+  const locale = await getLocale();
   const honeypot = String(formData.get("website") ?? "").trim();
   if (honeypot) {
-    redirect("/?pulse=blocked#community");
+    redirect({ href: "/?pulse=blocked#community", locale });
   }
 
   const message = String(formData.get("message") ?? "").trim();
@@ -192,11 +237,11 @@ export async function submitHomePulse(formData: FormData) {
   const turnstileToken = String(formData.get("cf-turnstile-response") ?? "");
 
   if (!message) {
-    redirect("/?pulse=empty#community");
+    redirect({ href: "/?pulse=empty#community", locale });
   }
   const title =
     message.length <= 120 ? message : `${message.slice(0, 117)}…`;
-  const result = await createCommunityIdea({
+  const result = await runCreateIdea({
     title,
     body: message,
     authorName: name || undefined,
@@ -204,25 +249,8 @@ export async function submitHomePulse(formData: FormData) {
     turnstileToken: turnstileToken || undefined,
   });
   if (!result.ok) {
-    const err = result.error ?? "";
-    if (err.includes("人机") || err.includes("验证")) {
-      redirect("/?pulse=verify#community");
-    }
-    if (err.includes("频繁")) {
-      redirect("/?pulse=rate#community");
-    }
-    if (err.includes("邮箱")) {
-      redirect("/?pulse=invalid#community");
-    }
-    if (
-      err.includes("拦截") ||
-      err.includes("链接") ||
-      err.includes("推广") ||
-      err.includes("垃圾")
-    ) {
-      redirect("/?pulse=spam#community");
-    }
-    redirect("/?pulse=error#community");
+    const pulse = ideaCodeToPulse(result.code);
+    redirect({ href: `/?pulse=${pulse}#community`, locale });
   }
-  redirect("/community?submitted=1");
+  redirect({ href: "/community?submitted=1", locale });
 }

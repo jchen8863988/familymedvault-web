@@ -47,7 +47,7 @@ export async function setAdminSessionCookie(): Promise<void> {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    path: "/community/admin",
+    path: "/",
     maxAge: SESSION_HOURS * 60 * 60,
   });
 }

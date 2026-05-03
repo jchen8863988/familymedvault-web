@@ -1,0 +1,221 @@
+{
+  "nav": {
+    "features": "功能",
+    "community": "社区",
+    "download": "下载"
+  },
+  "localeSwitcher": {
+    "label": "语言",
+    "en": "English",
+    "zh": "中文"
+  },
+  "footer": {
+    "privacy": "隐私",
+    "terms": "条款",
+    "contactSubject": "FamilyMedVault 官网咨询"
+  },
+  "pulse": {
+    "blocked": "无法提交，请刷新页面后重试。",
+    "verify": "请先完成人机验证后再提交。",
+    "rate": "提交过于频繁，请稍后再试。",
+    "invalid": "邮箱格式不正确。",
+    "spam": "内容未通过防垃圾审核，未提交。",
+    "empty": "请先填写反馈内容。",
+    "error": "提交失败，请稍后再试。"
+  },
+  "pulseForm": {
+    "hint": "快速反馈 — 称呼与邮箱可选；提交将出现在社区想法墙（Supabase）。",
+    "openCommunity": "打开社区想法",
+    "submit": "提交到社区",
+    "namePh": "称呼（可选）",
+    "emailPh": "邮箱（可选）",
+    "messagePh": "你希望有什么工具？什么问题每天在消耗你的时间？"
+  },
+  "home": {
+    "metaTitle": "FamilyMedVault — 家庭健康记录与应急准备",
+    "metaDesc": "集中管理病历、用药、预约、转诊与紧急健康信息，守护你所爱的人。",
+    "brand": "familymedvault.com",
+    "heroTitle": "全家健康，一处安放。Your Family. Your Health. One Secure Place.",
+    "heroLead": "集中管理病历、用药、预约、转诊与紧急健康信息，守护你所爱的人。",
+    "bullets": [
+      "家庭医疗记录 · 一处归档",
+      "预约与转诊协同",
+      "AI 健康助手 · 自然语言提问",
+      "紧急卡片 · 急诊与出行可导出"
+    ],
+    "ctaAppStore": "App Store · 等待发布",
+    "ctaPain": "说出你的痛点",
+    "visualCards": [
+      "医疗记录",
+      "预约与转诊",
+      "AI 健康助手",
+      "紧急卡片导出"
+    ],
+    "featuresTitle": "一家人用得上的能力",
+    "featuresLead": "为照护者减负：少表格、少漏服、少空跑医院；看病前先理清问题。",
+    "featuresItems": [
+      {
+        "title": "安全存档",
+        "desc": "化验、影像、处方与病史集中保存。"
+      },
+      {
+        "title": "照护协同",
+        "desc": "预约、转诊在一处跟进。"
+      },
+      {
+        "title": "AI 助手",
+        "desc": "读懂报告、准备更有效的问诊。"
+      },
+      {
+        "title": "用药工具",
+        "desc": "提醒、记录与续药感知。"
+      },
+      {
+        "title": "应急就绪",
+        "desc": "急诊与出行时可即时导出。"
+      },
+      {
+        "title": "家庭共享",
+        "desc": "父母子女与亲友 — 权限由你掌控。"
+      }
+    ],
+    "communityTitle": "告诉我们你想解决什么问题",
+    "communityLead": "你的痛点会成为产品路线 — 新想法、真实验证与未来实验。进入",
+    "communityLink": "社区想法",
+    "communityLeadAfter": "进行结构化提交、点赞与讨论。",
+    "shipTitle": "接下来会做什么",
+    "shipLead": "今天的 FamilyMedVault — 加上订阅工具、电动出行与健康产品，由社区决定优先级。",
+    "shipCards": [
+      {
+        "title": "FamilyMedVault",
+        "desc": "家庭健康记录与应急准备。"
+      },
+      {
+        "title": "订阅类工具",
+        "desc": "来自创始家庭与长期订阅用户的想法。"
+      },
+      {
+        "title": "电动 & 健康",
+        "desc": "充电与健康工作流，由你的反馈驱动。"
+      }
+    ],
+    "downloadTitle": "守护最重要的人",
+    "downloadLead": "iOS 版正在 App Store 审核；上架后在此提供官方下载链接。",
+    "downloadPending": "等待发布中 · Pending App Store release",
+    "downloadButton": "在 App Store 下载"
+  },
+  "communityPage": {
+    "metaTitle": "社区想法 · FamilyMedVault",
+    "metaDesc": "分享问题、工具愿望与功能想法，一起验证下一步做什么。",
+    "eyebrow": "社区",
+    "title": "社区想法",
+    "lead": "数据保存在 Supabase：每个浏览器对同一帖仅可点赞一次，可评论，支持最热/最新排序。",
+    "tags": [
+      "我遇到的问题",
+      "我想要的工具",
+      "很差的 App",
+      "希望什么功能"
+    ],
+    "footerJump": "更想用最短表单？",
+    "footerLink": "跳转到首页「告诉我们你的痛点」",
+    "submittedBanner": "你通过首页快捷表单的反馈已发布到想法墙。"
+  },
+  "communityClient": {
+    "notConfiguredTitle": "数据库未连接",
+    "notConfiguredBody": "请在项目根目录创建 .env.local，填入 NEXT_PUBLIC_SUPABASE_URL 与 NEXT_PUBLIC_SUPABASE_ANON_KEY，并在 Supabase 执行 supabase/schema.sql。同步到 Vercel 环境变量后重新部署。",
+    "sortHot": "最热门",
+    "sortNew": "最新",
+    "metaLine": "数据保存在 Supabase · 点赞按浏览器匿名 ID 限一次",
+    "formTitle": "提交你的想法",
+    "titlePh": "标题（一句话）",
+    "bodyPh": "描述你的问题、想要的工具、或你觉得很差的 App…",
+    "namePh": "称呼（可选）",
+    "emailPh": "邮箱（可选，便于跟进）",
+    "submitting": "提交中…",
+    "submit": "提交",
+    "verifyFirst": "请先完成人机验证。",
+    "honeyFail": "提交失败，请刷新页面后重试。",
+    "thanks": "已提交，感谢分享。",
+    "wallTitle": "想法墙",
+    "emptyWall": "还没有帖子，欢迎第一个提交想法。",
+    "pinned": "置顶",
+    "comments": "评论（{count}）",
+    "loadingComments": "加载评论…",
+    "commentNamePh": "称呼（可选）",
+    "commentBodyPh": "写一条评论…",
+    "sendComment": "发送评论",
+    "commentEmpty": "请输入评论内容。",
+    "voteStorage": "无法点赞：浏览器存储不可用。",
+    "voteDuplicate": "你已点过赞",
+    "loadCommentsFail": "加载评论失败"
+  },
+  "community": {
+    "errors": {
+      "honeyFailed": "提交失败，请刷新页面后重试。",
+      "emptyFields": "标题与正文不能为空。",
+      "invalidEmail": "邮箱格式不正确。",
+      "spamPhrase": "内容疑似垃圾推广或不符合社区规范，已被拦截。",
+      "spamLinks": "链接过多，疑似推广内容，已被拦截。请减少外链或改用文字描述。",
+      "turnstileFailed": "人机验证未通过，请完成验证后重试。",
+      "supabaseNotConfigured": "未配置 Supabase。",
+      "rateLimited": "提交过于频繁，请稍后再试。",
+      "submitFailed": "提交失败，请稍后再试。",
+      "invalidVote": "无效点赞。",
+      "voteFailed": "点赞失败，请稍后再试。",
+      "emptyComment": "评论内容不能为空。",
+      "commentRateLimited": "评论过于频繁，请稍后再试。",
+      "commentFailed": "评论失败，请稍后再试。"
+    }
+  },
+  "notFound": {
+    "title": "页面未找到",
+    "description": "该页面不存在，或链接有误。",
+    "home": "返回首页"
+  },
+  "cookieBanner": {
+    "message": "本站使用运行所必需 Cookie，并通过 Vercel Analytics 了解访问情况。点击「同意」即表示你同意按隐私政策处理分析数据；选择「仅必要」则不使用分析统计。",
+    "accept": "同意",
+    "essential": "仅必要",
+    "privacy": "隐私政策"
+  },
+  "privacyPage": {
+    "title": "隐私政策",
+    "metaDesc": "说明 FamilyMedVault 在网站与 App 中如何处理数据，便于你了解与对照。",
+    "updated": "最近更新：2026 年 5 月 3 日（随产品与上架渠道变更可能更新）。",
+    "back": "← 返回首页"
+  },
+  "termsPage": {
+    "title": "服务条款",
+    "metaDesc": "使用 FamilyMedVault 网站及相关服务的条款说明（含独立开发者责任边界与 App Store 衔接）。",
+    "updated": "最近更新：2026 年 5 月 3 日（含独立开发者责任边界与 App Store 衔接说明）。",
+    "back": "← 返回首页"
+  },
+  "admin": {
+    "metaTitle": "社区管理",
+    "loginTitle": "社区管理登录",
+    "loginHint": "输入环境变量 COMMUNITY_ADMIN_SECRET 对应的密码。请勿公开此页面链接。",
+    "loginWrong": "密码不正确。",
+    "loginPh": "管理密码",
+    "loginSubmit": "登录",
+    "disabledTitle": "管理后台未启用",
+    "disabledBody": "请在服务器环境变量中设置 COMMUNITY_ADMIN_SECRET 与 SUPABASE_SERVICE_ROLE_KEY 后重新部署。",
+    "listTitle": "帖子列表",
+    "empty": "暂无帖子。",
+    "backCommunity": "返回社区",
+    "logout": "退出登录",
+    "pin": "置顶",
+    "unpin": "取消置顶",
+    "delete": "删除",
+    "confirmDelete": "确定删除该帖？关联的点赞与评论将一并删除，且不可恢复。",
+    "pageTitle": "社区管理",
+    "errors": {
+      "session": "未登录或会话已过期。",
+      "noServiceKey": "服务器未配置 SUPABASE_SERVICE_ROLE_KEY。",
+      "invalidId": "无效 ID。",
+      "deleteFailed": "删除失败，请稍后再试。",
+      "notFound": "找不到该帖子。",
+      "pinFailed": "操作失败，请稍后再试。",
+      "supabaseIdeas": "Supabase 未配置，无法加载帖子。"
+    }
+  }
+}

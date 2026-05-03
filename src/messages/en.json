@@ -1,0 +1,221 @@
+{
+  "nav": {
+    "features": "Features",
+    "community": "Community",
+    "download": "Download"
+  },
+  "localeSwitcher": {
+    "label": "Language",
+    "en": "English",
+    "zh": "中文"
+  },
+  "footer": {
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "contactSubject": "FamilyMedVault website inquiry"
+  },
+  "pulse": {
+    "blocked": "Submission blocked. Please refresh and try again.",
+    "verify": "Complete the verification challenge and try again.",
+    "rate": "Too many submissions. Please wait and try again.",
+    "invalid": "Invalid email format.",
+    "spam": "Your message was filtered as spam.",
+    "empty": "Please enter your feedback.",
+    "error": "Submission failed. Please try again later."
+  },
+  "pulseForm": {
+    "hint": "Quick pulse — optional name/email; appears on Community Ideas (Supabase).",
+    "openCommunity": "Open Community Ideas",
+    "submit": "Submit to Community",
+    "namePh": "Your name (optional)",
+    "emailPh": "Email (optional)",
+    "messagePh": "What tool do you wish existed? What daily problem wastes your time?"
+  },
+  "home": {
+    "metaTitle": "FamilyMedVault — Family health records & emergency readiness",
+    "metaDesc": "Organize family medical records, appointments, medications, and emergency health info in one secure place.",
+    "brand": "familymedvault.com",
+    "heroTitle": "Your Family. Your Health. One Secure Place.",
+    "heroLead": "Organize records, medications, appointments, referrals, and emergency health info for everyone you love.",
+    "bullets": [
+      "Medical records in one vault",
+      "Appointments & referrals",
+      "AI health assistant — ask in plain language",
+      "Emergency card export for urgent care"
+    ],
+    "ctaAppStore": "App Store · Coming soon",
+    "ctaPain": "Share a pain point",
+    "visualCards": [
+      "Medical records",
+      "Appointments & referrals",
+      "AI health assistant",
+      "Emergency card export"
+    ],
+    "featuresTitle": "Everything your family needs",
+    "featuresLead": "Built for busy caregivers: fewer spreadsheets, fewer missed refills, faster answers before the doctor visit.",
+    "featuresItems": [
+      {
+        "title": "Secure records",
+        "desc": "Store labs, imaging, prescriptions, and history."
+      },
+      {
+        "title": "Care coordination",
+        "desc": "Track appointments and referrals in one place."
+      },
+      {
+        "title": "AI assistant",
+        "desc": "Understand reports and prepare better questions."
+      },
+      {
+        "title": "Medication tools",
+        "desc": "Reminders, logs, and refill awareness."
+      },
+      {
+        "title": "Emergency ready",
+        "desc": "Instant export for urgent care and travel."
+      },
+      {
+        "title": "Family sharing",
+        "desc": "Parents, kids, and loved ones — permissions you control."
+      }
+    ],
+    "communityTitle": "Tell us what problem you need solved",
+    "communityLead": "Your pain points become our roadmap — new app ideas, validation, and a future product lab. Jump into",
+    "communityLink": "Community Ideas",
+    "communityLeadAfter": "for structured submissions, votes, and discussion.",
+    "shipTitle": "What we ship next",
+    "shipLead": "FamilyMedVault today — subscription utilities, EV tools, and more health products as the community tells us what hurts.",
+    "shipCards": [
+      {
+        "title": "FamilyMedVault",
+        "desc": "Secure family health records & emergency readiness."
+      },
+      {
+        "title": "Subscription tools",
+        "desc": "Ideas from founders & households managing recurring spend."
+      },
+      {
+        "title": "EV & health tools",
+        "desc": "Charging + wellness workflows driven by your feedback."
+      }
+    ],
+    "downloadTitle": "Protect what matters most",
+    "downloadLead": "The iOS app is in App Store review; we will link the official listing here when it is live.",
+    "downloadPending": "Pending App Store release",
+    "downloadButton": "Download on the App Store"
+  },
+  "communityPage": {
+    "metaTitle": "Community Ideas · FamilyMedVault",
+    "metaDesc": "Share problems, tool wishes, and feature ideas. Help validate what we build next.",
+    "eyebrow": "Community",
+    "title": "Community Ideas",
+    "lead": "Submissions are stored in Supabase: vote once per browser, comment on each idea, and sort by hottest or newest.",
+    "tags": [
+      "Problems I hit",
+      "Tools I want",
+      "Bad apps",
+      "Features I need"
+    ],
+    "footerJump": "Prefer the short form on the homepage?",
+    "footerLink": "Jump to Tell us your pain points",
+    "submittedBanner": "Your homepage feedback was posted to the idea wall."
+  },
+  "communityClient": {
+    "notConfiguredTitle": "Database not connected",
+    "notConfiguredBody": "Create .env.local with NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY, run supabase/schema.sql in Supabase, sync env on Vercel, then redeploy.",
+    "sortHot": "Hot",
+    "sortNew": "New",
+    "metaLine": "Stored in Supabase · one vote per browser ID",
+    "formTitle": "Submit your idea",
+    "titlePh": "Title (one line)",
+    "bodyPh": "Describe your problem, the tool you want, or a bad app…",
+    "namePh": "Name (optional)",
+    "emailPh": "Email (optional, for follow-up)",
+    "submitting": "Submitting…",
+    "submit": "Submit",
+    "verifyFirst": "Complete the verification challenge first.",
+    "honeyFail": "Submission failed. Refresh and try again.",
+    "thanks": "Thanks — submitted.",
+    "wallTitle": "Idea wall",
+    "emptyWall": "No posts yet. Be the first.",
+    "pinned": "Pinned",
+    "comments": "Comments ({count})",
+    "loadingComments": "Loading comments…",
+    "commentNamePh": "Name (optional)",
+    "commentBodyPh": "Write a comment…",
+    "sendComment": "Send comment",
+    "commentEmpty": "Enter comment text.",
+    "voteStorage": "Cannot vote: browser storage unavailable.",
+    "voteDuplicate": "You already voted on this idea.",
+    "loadCommentsFail": "Failed to load comments."
+  },
+  "community": {
+    "errors": {
+      "honeyFailed": "Submission failed. Refresh and try again.",
+      "emptyFields": "Title and body are required.",
+      "invalidEmail": "Invalid email format.",
+      "spamPhrase": "This looks like promotional spam and was blocked.",
+      "spamLinks": "Too many links — please use fewer URLs or describe in words.",
+      "turnstileFailed": "Verification failed. Complete the challenge and retry.",
+      "supabaseNotConfigured": "Supabase is not configured.",
+      "rateLimited": "Too many submissions. Please try again later.",
+      "submitFailed": "Submission failed. Please try again later.",
+      "invalidVote": "Invalid vote.",
+      "voteFailed": "Vote failed. Please try again later.",
+      "emptyComment": "Comment cannot be empty.",
+      "commentRateLimited": "Too many comments. Please try again later.",
+      "commentFailed": "Comment failed. Please try again later."
+    }
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "This page does not exist or the link may be wrong.",
+    "home": "Back to home"
+  },
+  "cookieBanner": {
+    "message": "We use essential cookies to run the site and Vercel Analytics to measure traffic. By accepting, you agree to analytics as described in our Privacy Policy. Choose \"Essential only\" to disable analytics.",
+    "accept": "Accept",
+    "essential": "Essential only",
+    "privacy": "Privacy Policy"
+  },
+  "privacyPage": {
+    "title": "Privacy Policy",
+    "metaDesc": "How FamilyMedVault handles data on the website and in the app — transparency for visitors and users.",
+    "updated": "Last updated: May 3, 2026 (may change with the product).",
+    "back": "← Back to home"
+  },
+  "termsPage": {
+    "title": "Terms of Service",
+    "metaDesc": "Terms governing use of FamilyMedVault.com and related services — indie-developer scope and App Store notes.",
+    "updated": "Last updated: May 3, 2026 (includes indie-developer liability boundaries and App Store references).",
+    "back": "← Back to home"
+  },
+  "admin": {
+    "metaTitle": "Community admin",
+    "loginTitle": "Admin sign-in",
+    "loginHint": "Enter the password matching COMMUNITY_ADMIN_SECRET. Do not share this URL.",
+    "loginWrong": "Incorrect password.",
+    "loginPh": "Admin password",
+    "loginSubmit": "Sign in",
+    "disabledTitle": "Admin not enabled",
+    "disabledBody": "Set COMMUNITY_ADMIN_SECRET and SUPABASE_SERVICE_ROLE_KEY on the server, then redeploy.",
+    "listTitle": "Posts",
+    "empty": "No posts.",
+    "backCommunity": "Back to community",
+    "logout": "Sign out",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "delete": "Delete",
+    "confirmDelete": "Delete this post? Votes and comments will be removed permanently.",
+    "pageTitle": "Community admin",
+    "errors": {
+      "session": "Not signed in or session expired.",
+      "noServiceKey": "SUPABASE_SERVICE_ROLE_KEY is not set.",
+      "invalidId": "Invalid ID.",
+      "deleteFailed": "Delete failed. Please try again.",
+      "notFound": "Post not found.",
+      "pinFailed": "Operation failed. Please try again.",
+      "supabaseIdeas": "Supabase is not configured — cannot load posts."
+    }
+  }
+}

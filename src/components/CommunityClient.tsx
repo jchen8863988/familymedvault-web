@@ -11,7 +11,8 @@ import {
   isTurnstileConfigured,
 } from "@/components/TurnstileField";
 import { getBrowserSupabase } from "@/lib/supabase/browser";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useRef, useState, useTransition } from "react";
 
 type SortKey = "hot" | "new";
@@ -37,6 +38,7 @@ type Props = {
 };
 
 export function CommunityClient({ configured, initialIdeas }: Props) {
+  const t = useTranslations("communityClient");
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [sort, setSort] = useState<SortKey>("hot");
@@ -101,24 +103,24 @@ export function CommunityClient({ configured, initialIdeas }: Props) {
       .order("created_at", { ascending: true });
     setLoadingCommentsId(null);
     if (error) {
-      setFeedback("加载评论失败");
+      setFeedback(t("loadCommentsFail"));
       return;
     }
     setCommentsByIdea((prev) => ({
       ...prev,
       [ideaId]: (data ?? []) as IdeaCommentRow[],
     }));
-  }, []);
+  }, [t]);
 
   const handleSubmitIdea = (e: React.FormEvent) => {
     e.preventDefault();
     setFeedback(null);
     if (honeyRef.current?.value?.trim()) {
-      setFeedback("提交失败，请刷新页面后重试。");
+      setFeedback(t("honeyFail"));
       return;
     }
     if (turnstileOn && !turnstileToken?.trim()) {
-      setFeedback("请先完成人机验证。");
+      setFeedback(t("verifyFirst"));
       return;
     }
     startTransition(async () => {
@@ -139,7 +141,7 @@ export function CommunityClient({ configured, initialIdeas }: Props) {
       setAuthorName("");
       setAuthorEmail("");
       setTurnstileToken(null);
-      setFeedback("已提交，感谢分享。");
+      setFeedback(t("thanks"));
       router.refresh();
     });
   };
@@ -149,7 +151,7 @@ export function CommunityClient({ configured, initialIdeas }: Props) {
     setVoteFlash(null);
     const clientId = getOrCreateClientId();
     if (!clientId) {
-      setFeedback("无法点赞：浏览器存储不可用。");
+      setFeedback(t("voteStorage"));
       return;
     }
     startTransition(async () => {
@@ -159,7 +161,7 @@ export function CommunityClient({ configured, initialIdeas }: Props) {
         return;
       }
       if ("duplicate" in res && res.duplicate) {
-        setVoteFlash("你已点过赞");
+        setVoteFlash(t("voteDuplicate"));
         return;
       }
       router.refresh();
@@ -170,7 +172,7 @@ export function CommunityClient({ configured, initialIdeas }: Props) {
     const text = (commentDrafts[ideaId] ?? "").trim();
     const name = (commentNames[ideaId] ?? "").trim();
     if (!text) {
-      setFeedback("请输入评论内容");
+      setFeedback(t("commentEmpty"));
       return;
     }
     const clientId = getOrCreateClientId();
@@ -208,24 +210,8 @@ export function CommunityClient({ configured, initialIdeas }: Props) {
     return (
       <div className="mx-auto max-w-4xl px-6 pb-20">
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-6 py-4 text-sm text-amber-950">
-          <p className="font-medium">数据库未连接</p>
-          <p className="mt-2 text-amber-900/90">
-            请在项目根目录创建{" "}
-            <code className="rounded bg-amber-100 px-1">.env.local</code>{" "}
-            ，填入{" "}
-            <code className="rounded bg-amber-100 px-1">
-              NEXT_PUBLIC_SUPABASE_URL
-            </code>{" "}
-            与{" "}
-            <code className="rounded bg-amber-100 px-1">
-              NEXT_PUBLIC_SUPABASE_ANON_KEY
-            </code>
-            ，并在 Supabase 执行{" "}
-            <code className="rounded bg-amber-100 px-1">
-              supabase/schema.sql
-            </code>
-            。同步到 Vercel 环境变量后重新部署。
-          </p>
+          <p className="font-medium">{t("notConfiguredTitle")}</p>
+          <p className="mt-2 text-amber-900/90">{t("notConfiguredBody")}</p>
         </div>
       </div>
     );
@@ -237,8 +223,8 @@ export function CommunityClient({ configured, initialIdeas }: Props) {
         <div className="flex gap-2">
           {(
             [
-              ["hot", "最热门"],
-              ["new", "最新"],
+              ["hot", t("sortHot")],
+              ["new", t("sortNew")],
             ] as const
           ).map(([key, label]) => (
             <button
@@ -256,9 +242,7 @@ export function CommunityClient({ configured, initialIdeas }: Props) {
             </button>
           ))}
         </div>
-        <p className="text-xs text-slate-500">
-          数据保存在 Supabase · 点赞按浏览器匿名 ID 限一次
-        </p>
+        <p className="text-xs text-slate-500">{t("metaLine")}</p>
       </div>
 
       {feedback ? (
@@ -284,10 +268,10 @@ export function CommunityClient({ configured, initialIdeas }: Props) {
           aria-hidden
           className="pointer-events-none absolute left-[-9999px] h-0 w-0 opacity-0"
         />
-        <h2 className="text-xl font-semibold">提交你的想法</h2>
+        <h2 className="text-xl font-semibold">{t("formTitle")}</h2>
         <input
           className="rounded-2xl border border-slate-200 bg-white p-4 outline-none focus:border-slate-400"
-          placeholder="标题（一句话）"
+          placeholder={t("titlePh")}
           required
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -296,7 +280,7 @@ export function CommunityClient({ configured, initialIdeas }: Props) {
         />
         <textarea
           className="min-h-[140px] rounded-2xl border border-slate-200 bg-white p-4 outline-none focus:border-slate-400"
-          placeholder="描述你的问题、想要的工具、或你觉得很差的 App…"
+          placeholder={t("bodyPh")}
           required
           value={body}
           onChange={(e) => setBody(e.target.value)}
@@ -306,7 +290,7 @@ export function CommunityClient({ configured, initialIdeas }: Props) {
         <div className="grid gap-4 md:grid-cols-2">
           <input
             className="rounded-2xl border border-slate-200 bg-white p-4 outline-none focus:border-slate-400"
-            placeholder="称呼（可选）"
+            placeholder={t("namePh")}
             value={authorName}
             onChange={(e) => setAuthorName(e.target.value)}
             disabled={pending}
@@ -314,7 +298,7 @@ export function CommunityClient({ configured, initialIdeas }: Props) {
           <input
             type="email"
             className="rounded-2xl border border-slate-200 bg-white p-4 outline-none focus:border-slate-400"
-            placeholder="邮箱（可选，便于跟进）"
+            placeholder={t("emailPh")}
             value={authorEmail}
             onChange={(e) => setAuthorEmail(e.target.value)}
             disabled={pending}
@@ -326,16 +310,14 @@ export function CommunityClient({ configured, initialIdeas }: Props) {
           disabled={pending || (turnstileOn && !turnstileToken)}
           className="rounded-2xl bg-slate-900 px-6 py-4 font-medium text-white transition hover:bg-slate-800 disabled:opacity-60"
         >
-          {pending ? "提交中…" : "提交"}
+          {pending ? t("submitting") : t("submit")}
         </button>
       </form>
 
       <div className="mt-12 space-y-4">
-        <h3 className="text-lg font-semibold">想法墙</h3>
+        <h3 className="text-lg font-semibold">{t("wallTitle")}</h3>
         {sorted.length === 0 ? (
-          <p className="text-sm text-slate-600">
-            还没有帖子，欢迎第一个提交想法。
-          </p>
+          <p className="text-sm text-slate-600">{t("emptyWall")}</p>
         ) : null}
         {sorted.map((item) => (
           <article
@@ -347,7 +329,7 @@ export function CommunityClient({ configured, initialIdeas }: Props) {
                 <h4 className="flex flex-wrap items-center gap-2 text-lg font-semibold text-slate-900">
                   {item.pinned ? (
                     <span className="rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">
-                      置顶
+                      {t("pinned")}
                     </span>
                   ) : null}
                   <span>{item.title}</span>
@@ -374,7 +356,7 @@ export function CommunityClient({ configured, initialIdeas }: Props) {
                   className="text-left text-sm text-teal-800 underline-offset-2 hover:underline md:text-right"
                   onClick={() => toggleComments(item.id)}
                 >
-                  评论（{item.comment_count}）
+                  {t("comments", { count: item.comment_count })}
                 </button>
               </div>
             </div>
@@ -382,7 +364,7 @@ export function CommunityClient({ configured, initialIdeas }: Props) {
             {expandedId === item.id ? (
               <div className="mt-6 border-t border-slate-100 pt-4">
                 {loadingCommentsId === item.id ? (
-                  <p className="text-sm text-slate-500">加载评论…</p>
+                  <p className="text-sm text-slate-500">{t("loadingComments")}</p>
                 ) : (
                   <ul className="space-y-3">
                     {(commentsByIdea[item.id] ?? []).map((c) => (
@@ -402,7 +384,7 @@ export function CommunityClient({ configured, initialIdeas }: Props) {
                 <div className="mt-4 grid gap-2">
                   <input
                     className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400"
-                    placeholder="称呼（可选）"
+                    placeholder={t("commentNamePh")}
                     value={commentNames[item.id] ?? ""}
                     onChange={(e) =>
                       setCommentNames((prev) => ({
@@ -414,7 +396,7 @@ export function CommunityClient({ configured, initialIdeas }: Props) {
                   />
                   <textarea
                     className="min-h-[80px] rounded-xl border border-slate-200 bg-white p-3 text-sm outline-none focus:border-slate-400"
-                    placeholder="写一条评论…"
+                    placeholder={t("commentBodyPh")}
                     value={commentDrafts[item.id] ?? ""}
                     onChange={(e) =>
                       setCommentDrafts((prev) => ({
@@ -431,7 +413,7 @@ export function CommunityClient({ configured, initialIdeas }: Props) {
                     className="w-fit rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
                     onClick={() => handleSubmitComment(item.id)}
                   >
-                    发送评论
+                    {t("sendComment")}
                   </button>
                 </div>
               </div>

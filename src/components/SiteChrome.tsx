@@ -1,23 +1,29 @@
-import Link from "next/link";
+import { getTranslations } from "next-intl/server";
+import { Link } from "@/i18n/navigation";
+import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 
-export function SiteHeader() {
+export async function SiteHeader() {
+  const t = await getTranslations("nav");
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/90 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-6 py-4">
         <Link href="/" className="text-xl font-bold text-slate-900">
           FamilyMedVault
         </Link>
         <nav className="hidden items-center gap-6 text-sm text-slate-700 md:flex">
-          <Link href="/#features">Features</Link>
-          <Link href="/community">Community</Link>
-          <Link href="/#download">Download</Link>
+          <Link href="/#features">{t("features")}</Link>
+          <Link href="/community">{t("community")}</Link>
+          <Link href="/#download">{t("download")}</Link>
         </nav>
-        <Link
-          href="/community"
-          className="rounded-xl border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-800 md:hidden"
-        >
-          Community
-        </Link>
+        <div className="flex items-center gap-2">
+          <LocaleSwitcher />
+          <Link
+            href="/community"
+            className="rounded-xl border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-800 md:hidden"
+          >
+            {t("community")}
+          </Link>
+        </div>
       </div>
     </header>
   );
@@ -25,18 +31,19 @@ export function SiteHeader() {
 
 const CONTACT_EMAIL = "hello@familymedvault.com";
 
-export function SiteFooter() {
-  const mailto = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent("FamilyMedVault 官网咨询")}`;
+export async function SiteFooter() {
+  const t = await getTranslations("footer");
+  const mailto = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(t("contactSubject"))}`;
   return (
     <footer className="border-t border-slate-100 py-10 text-center text-sm text-slate-500">
       <p>
         © {new Date().getFullYear()} FamilyMedVault.com ·{" "}
         <Link href="/privacy" className="underline-offset-2 hover:underline">
-          Privacy
+          {t("privacy")}
         </Link>{" "}
         ·{" "}
         <Link href="/terms" className="underline-offset-2 hover:underline">
-          Terms
+          {t("terms")}
         </Link>
       </p>
       <p className="mt-3">

@@ -1,8 +1,9 @@
 "use server";
 
 import { createHash, timingSafeEqual } from "crypto";
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { revalidateAdminRoutes, revalidateCommunityRoutes } from "@/lib/revalidate-i18n";
+import { getLocale, getTranslations } from "next-intl/server";
+import { redirect } from "@/i18n/navigation";
 import {
   clearAdminSessionCookie,
   setAdminSessionCookie,
@@ -20,54 +21,58 @@ function verifyAdminPassword(input: string): boolean {
 }
 
 export async function loginCommunityAdmin(formData: FormData) {
+  const locale = await getLocale();
   const password = String(formData.get("password") ?? "");
   if (!verifyAdminPassword(password)) {
-    redirect("/community/admin?err=1");
+    redirect({ href: "/community/admin?err=1", locale });
   }
   await setAdminSessionCookie();
-  redirect("/community/admin");
+  redirect({ href: "/community/admin", locale });
 }
 
 export async function logoutCommunityAdmin() {
+  const locale = await getLocale();
   await clearAdminSessionCookie();
-  redirect("/community/admin");
+  redirect({ href: "/community/admin", locale });
 }
 
 export async function deleteCommunityIdeaAdmin(
   ideaId: string,
 ): Promise<ActionResult> {
+  const t = await getTranslations("admin.errors");
   if (!(await verifyCommunityAdminSession())) {
-    return { ok: false, error: "未登录或会话已过期。" };
+    return { ok: false, error: t("session") };
   }
   const sb = createServiceSupabase();
   if (!sb) {
-    return { ok: false, error: "服务器未配置 SUPABASE_SERVICE_ROLE_KEY。" };
+    return { ok: false, error: t("noServiceKey") };
   }
   const id = ideaId.trim();
-  if (!id) return { ok: false, error: "无效 ID。" };
+  if (!id) return { ok: false, error: t("invalidId") };
 
   const { error } = await sb.from("community_ideas").delete().eq("id", id);
   if (error) {
     console.error("[community admin] delete", error.message);
-    return { ok: false, error: "删除失败，请稍后再试。" };
+    return { ok: false, error: t("deleteFailed") };
   }
-  revalidatePath("/community");
-  revalidatePath("/community/admin");
+  revalidateCommunityRoutes();
+  revalidateAdminRoutes();
   return { ok: true };
 }
 
 export async function togglePinCommunityIdea(
   ideaId: string,
 ): Promise<ActionResult & { pinned?: boolean }> {
+  const t = await getTranslations("admin.errors");
   if (!(await verifyCommunityAdminSession())) {
-    return { ok: false, error: "未登录或会话已过期。" };
+    return { ok: false, error: t("session") };
   }
   const sb = createServiceSupabase();
   if (!sb) {
-    return { ok: false, error: "服务器未配置 SUPABASE_SERVICE_ROLE_KEY。" };
+    return { ok: false, error: t("noServiceKey") };
   }
   const id = ideaId.trim();
-  if (!id) return { ok: false, error: "无效 ID。" };
+  if (!id) return { ok: false, error: t("invalidId") };
 
   const { data: row, error: fetchErr } = await sb
     .from("community_ideas")
@@ -76,7 +81,7 @@ export async function togglePinCommunityIdea(
     .maybeSingle();
 
   if (fetchErr || !row) {
-    return { ok: false, error: "找不到该帖子。" };
+    return { ok: false, error: t("notFound") };
   }
 
   const nextPinned = !(row.pinned ?? false);
@@ -87,9 +92,9 @@ export async function togglePinCommunityIdea(
 
   if (error) {
     console.error("[community admin] pin", error.message);
-    return { ok: false, error: "操作失败，请稍后再试。" };
+    return { ok: false, error: t("pinFailed") };
   }
-  revalidatePath("/community");
-  revalidatePath("/community/admin");
+  revalidateCommunityRoutes();
+  revalidateAdminRoutes();
   return { ok: true, pinned: nextPinned };
 }
