@@ -12,3 +12,10 @@ export function revalidateAdminRoutes(): void {
   revalidatePath("/community/admin");
   revalidatePath("/zh/community/admin");
 }
+
+export function revalidateAppsRoutes(): void {
+  revalidatePath("/apps");
+  revalidatePath("/zh/apps");
+  revalidatePath("/apps/admin");
+  revalidatePath("/zh/apps/admin");
+}

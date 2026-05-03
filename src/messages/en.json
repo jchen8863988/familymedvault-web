@@ -1,6 +1,7 @@
 {
   "nav": {
     "features": "Features",
+    "apps": "Apps · Downloads",
     "community": "Community",
     "download": "Download"
   },
@@ -30,6 +31,18 @@
     "namePh": "Your name (optional)",
     "emailPh": "Email (optional)",
     "messagePh": "What tool do you wish existed? What daily problem wastes your time?"
+  },
+  "appsPage": {
+    "metaTitle": "Apps · FamilyMedVault",
+    "metaDesc": "Download our apps from the App Store and Google Play.",
+    "eyebrow": "Downloads",
+    "title": "Our apps",
+    "lead": "Tap a store link to install. More apps will appear here as we ship them.",
+    "appStore": "App Store",
+    "playStore": "Google Play",
+    "webApp": "Open on the web",
+    "empty": "No apps listed yet. Check back soon.",
+    "notConfigured": "App listings require Supabase. Ask the site owner to set NEXT_PUBLIC_SUPABASE_URL and the anon key."
   },
   "home": {
     "metaTitle": "FamilyMedVault — Family health records & emergency readiness",
@@ -210,6 +223,59 @@
       "notFound": "Post not found.",
       "pinFailed": "Operation failed. Please try again.",
       "supabaseIdeas": "Supabase is not configured — cannot load posts."
+    }
+  },
+  "appsAdmin": {
+    "metaTitle": "Apps admin · FamilyMedVault",
+    "loginTitle": "Apps admin sign-in",
+    "loginHint": "Enter the password matching APPS_ADMIN_SECRET. Keep this URL private.",
+    "loginWrong": "Incorrect password.",
+    "loginPh": "Admin password",
+    "loginSubmit": "Sign in",
+    "disabledTitle": "Apps admin not enabled",
+    "disabledBody": "Set APPS_ADMIN_SECRET and SUPABASE_SERVICE_ROLE_KEY, run migration_store_apps.sql in Supabase, then redeploy.",
+    "pageTitle": "Store apps",
+    "backApps": "Back to public apps page",
+    "logout": "Sign out",
+    "addApp": "Add app",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "newEntry": "New app",
+    "formSlug": "Internal id (slug)",
+    "formSlugHint": "Lowercase letters, numbers, hyphens only. Example: my-app",
+    "formNameEn": "Name (English)",
+    "formNameZh": "Name (中文)",
+    "formTaglineEn": "Tagline (English)",
+    "formTaglineZh": "Tagline (中文)",
+    "platforms": "Platforms",
+    "platformIos": "iOS (App Store)",
+    "platformAndroid": "Android (Google Play)",
+    "platformWeb": "Web",
+    "appStoreUrl": "App Store URL",
+    "playUrl": "Google Play URL",
+    "webUrl": "Web URL",
+    "sortOrder": "Sort order (smaller first)",
+    "importTitle": "Bulk import (JSON)",
+    "importHint": "Paste a JSON array of app objects. Optional; see README for the exact shape.",
+    "importSubmit": "Import JSON",
+    "imported": "Import completed.",
+    "empty": "No apps yet. Add one or paste JSON below.",
+    "listTitle": "Saved apps",
+    "listSlug": "Slug",
+    "listName": "Name",
+    "delete": "Delete",
+    "errors": {
+      "session": "Not signed in or session expired.",
+      "noServiceKey": "SUPABASE_SERVICE_ROLE_KEY is not set.",
+      "invalidId": "Invalid row id.",
+      "invalidSlug": "Invalid slug. Use 1–80 characters: a–z, 0–9, hyphens.",
+      "requiredFields": "Name (EN/ZH) and at least one platform with a valid URL are required.",
+      "urlPlatform": "Each selected platform needs its store or web URL.",
+      "saveFailed": "Save failed. Check Supabase and try again.",
+      "deleteFailed": "Delete failed.",
+      "invalidJson": "Invalid JSON.",
+      "importFailed": "Import failed."
     }
   }
 }

@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 
 const COOKIE = "fmv_community_admin";
+const APPS_ADMIN_COOKIE = "fmv_apps_admin";
 const SESSION_HOURS = 8;
 
 async function hmacHex(secret: string, message: string): Promise<string> {
@@ -64,4 +65,34 @@ export async function verifyCommunityAdminSession(): Promise<boolean> {
 export async function clearAdminSessionCookie(): Promise<void> {
   const store = await cookies();
   store.delete(COOKIE);
+}
+
+/* --- Store apps admin (/apps/admin) — uses APPS_ADMIN_SECRET --- */
+
+export async function setAppsAdminSessionCookie(): Promise<void> {
+  const secret = process.env.APPS_ADMIN_SECRET;
+  if (!secret) return;
+  const value = await createToken(secret);
+  const store = await cookies();
+  store.set(APPS_ADMIN_COOKIE, value, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: SESSION_HOURS * 60 * 60,
+  });
+}
+
+export async function verifyAppsAdminSession(): Promise<boolean> {
+  const secret = process.env.APPS_ADMIN_SECRET;
+  if (!secret) return false;
+  const store = await cookies();
+  const raw = store.get(APPS_ADMIN_COOKIE)?.value;
+  if (!raw) return false;
+  return verifyToken(secret, raw);
+}
+
+export async function clearAppsAdminSessionCookie(): Promise<void> {
+  const store = await cookies();
+  store.delete(APPS_ADMIN_COOKIE);
 }

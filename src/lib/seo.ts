@@ -7,7 +7,7 @@ export const SITE_URL = (
 ).replace(/\/$/, "");
 
 /** Path without locale prefix; home is "". */
-export type SeoPath = "" | "/community" | "/privacy" | "/terms";
+export type SeoPath = "" | "/apps" | "/community" | "/privacy" | "/terms";
 
 export function absoluteUrl(locale: "en" | "zh", path: SeoPath): string {
   const suffix = path === "" ? "" : path;

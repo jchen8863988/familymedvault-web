@@ -24,6 +24,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Vercel + `.env.local` | Public anon / publishable key (RLS) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Vercel only (server) | Admin delete / pin (bypasses RLS); **never** commit |
 | `COMMUNITY_ADMIN_SECRET` | Vercel only (server) | Password for `/community/admin` session |
+| `APPS_ADMIN_SECRET` | Vercel only (server) | Password for `/apps/admin` (edit App Store / Play / web links; requires `store_apps` table) |
 | `RATE_LIMIT_IP_SALT` | Optional | Salt for hashed IP; defaults to `COMMUNITY_ADMIN_SECRET` |
 | `COMMUNITY_RATE_LIMIT_MAX` | Optional | Max idea submissions per IP hash per window (default `5`) |
 | `COMMUNITY_RATE_LIMIT_WINDOW_MS` | Optional | Window length in ms (default `3600000` = 1 hour) |
@@ -117,6 +118,7 @@ Server-side: keyword / URL-density filter, optional env blocklist, IP-hash rate 
 
 - **New project:** run `supabase/schema.sql` in the Supabase SQL Editor.
 - **Existing project** created before moderation fields: run `supabase/migration_community_moderation.sql` once to add `pinned` and `submitter_ip_hash`.
+- **Store apps (`/apps`):** run `supabase/migration_store_apps.sql` once to create `store_apps`. Then set `APPS_ADMIN_SECRET`, redeploy, and manage listings at **`/apps/admin`** (English default locale) or **`/zh/apps/admin`**. Public directory is **`/apps`** / **`/zh/apps`**. Optional bulk paste: JSON array of objects with `slug`, `name_en`, `name_zh`, booleans `platform_ios` / `platform_android` / `platform_web`, and matching URLs (`app_store_url`, `google_play_url`, `web_url`).
 
 ## Community admin
 
