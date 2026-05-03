@@ -58,8 +58,14 @@ export function CommunityClient({ configured, initialIdeas }: Props) {
 
   const sorted = useMemo(() => {
     const rows = [...initialIdeas];
+    const pinOrder = (a: CommunityIdeaRow, b: CommunityIdeaRow) => {
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+      return 0;
+    };
     if (sort === "hot") {
       return rows.sort((a, b) => {
+        const p = pinOrder(a, b);
+        if (p !== 0) return p;
         if (b.vote_count !== a.vote_count) {
           return b.vote_count - a.vote_count;
         }
@@ -68,10 +74,13 @@ export function CommunityClient({ configured, initialIdeas }: Props) {
         );
       });
     }
-    return rows.sort(
-      (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-    );
+    return rows.sort((a, b) => {
+      const p = pinOrder(a, b);
+      if (p !== 0) return p;
+      return (
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+    });
   }, [initialIdeas, sort]);
 
   const loadComments = useCallback(async (ideaId: string) => {
@@ -308,8 +317,13 @@ export function CommunityClient({ configured, initialIdeas }: Props) {
           >
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div className="min-w-0 flex-1">
-                <h4 className="text-lg font-semibold text-slate-900">
-                  {item.title}
+                <h4 className="flex flex-wrap items-center gap-2 text-lg font-semibold text-slate-900">
+                  {item.pinned ? (
+                    <span className="rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">
+                      置顶
+                    </span>
+                  ) : null}
+                  <span>{item.title}</span>
                 </h4>
                 <p className="mt-2 whitespace-pre-wrap text-slate-600">
                   {item.body}

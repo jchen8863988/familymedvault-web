@@ -1,5 +1,6 @@
-import Link from "next/link";
+import { TermsDoc } from "@/components/legal/TermsDoc";
 import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
+import Link from "next/link";
 
 export const metadata = { title: "Terms · FamilyMedVault" };
 
@@ -8,16 +9,16 @@ export default function TermsPage() {
     <div className="min-h-screen bg-white text-slate-900">
       <SiteHeader />
       <main className="mx-auto max-w-3xl px-6 py-16">
-        <h1 className="text-3xl font-bold">Terms</h1>
-        <p className="mt-6 text-slate-600">
-          Replace this placeholder with your terms of service. Cover acceptable
-          use, medical disclaimers (this site/app is not a substitute for
-          professional care), liability limits, and governing law as appropriate
-          for your jurisdiction.
+        <h1 className="text-3xl font-bold text-slate-900">服务条款</h1>
+        <p className="mt-2 text-sm text-slate-500">
+          最近更新：2026 年 5 月（随产品迭代可能修订，请以本页为准）。
         </p>
-        <p className="mt-6">
+        <div className="mt-10">
+          <TermsDoc />
+        </div>
+        <p className="mt-10">
           <Link href="/" className="text-teal-800 underline-offset-2 hover:underline">
-            ← Back home
+            ← 返回首页
           </Link>
         </p>
       </main>

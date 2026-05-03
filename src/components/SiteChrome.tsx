@@ -8,9 +8,9 @@ export function SiteHeader() {
           FamilyMedVault
         </Link>
         <nav className="hidden items-center gap-6 text-sm text-slate-700 md:flex">
-          <a href="/#features">Features</a>
+          <Link href="/#features">Features</Link>
           <Link href="/community">Community</Link>
-          <a href="/#download">Download</a>
+          <Link href="/#download">Download</Link>
         </nav>
         <Link
           href="/community"

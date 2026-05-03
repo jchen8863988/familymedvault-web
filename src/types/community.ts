@@ -7,6 +7,7 @@ export type CommunityIdeaRow = {
   created_at: string;
   vote_count: number;
   comment_count: number;
+  pinned: boolean;
 };
 
 export type IdeaCommentRow = {

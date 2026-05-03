@@ -1,36 +1,55 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FamilyMedVault — marketing site
 
-## Getting Started
+Next.js 16 (App Router) + Tailwind + Supabase for the public **Community** page (ideas, votes, comments).
 
-First, run the development server:
+**Live:** [familymedvault.com](https://www.familymedvault.com) (deployed on Vercel).
+
+## Local development
 
 ```bash
+npm install
+cp .env.example .env.local
+# Fill NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Variable | Where | Purpose |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | Vercel + `.env.local` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Vercel + `.env.local` | Public anon / publishable key (RLS) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Vercel only (server) | Admin delete / pin (bypasses RLS); **never** commit |
+| `COMMUNITY_ADMIN_SECRET` | Vercel only (server) | Password for `/community/admin` session |
+| `RATE_LIMIT_IP_SALT` | Optional | Salt for hashed IP; defaults to `COMMUNITY_ADMIN_SECRET` |
+| `COMMUNITY_RATE_LIMIT_MAX` | Optional | Max idea submissions per IP hash per window (default `5`) |
+| `COMMUNITY_RATE_LIMIT_WINDOW_MS` | Optional | Window length in ms (default `3600000` = 1 hour) |
 
-## Learn More
+Copy `.env.example` to `.env.local` and see table above.
 
-To learn more about Next.js, take a look at the following resources:
+## Database
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **New project:** run `supabase/schema.sql` in the Supabase SQL Editor.
+- **Existing project** created before moderation fields: run `supabase/migration_community_moderation.sql` once to add `pinned` and `submitter_ip_hash`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Community admin
 
-## Deploy on Vercel
+1. Set `COMMUNITY_ADMIN_SECRET` and `SUPABASE_SERVICE_ROLE_KEY` on Vercel and redeploy.
+2. Open `/community/admin` (not linked from the public nav), sign in with the secret value.
+3. Delete posts or toggle **置顶** (pinned). Pinned ideas appear at the top of the idea wall.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Do not share the admin URL or secret publicly.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Analytics
+
+The app includes `@vercel/analytics`. In the Vercel project, enable **Analytics** under the project tab so page views are collected in production.
+
+## Deploy
+
+Push to the connected Git branch (e.g. `main`); Vercel builds automatically. After changing env vars, trigger a **Redeploy**.
+
+## Repository
+
+Application code is in this repo; the native iOS app lives in a separate project.

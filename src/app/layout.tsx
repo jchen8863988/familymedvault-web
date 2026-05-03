@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -12,14 +13,31 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteTitle =
+  "FamilyMedVault — Family health records & emergency readiness";
+const siteDescription =
+  "Organize family medical records, appointments, medications, and emergency health info in one secure place.";
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://familymedvault.com"),
+  metadataBase: new URL("https://www.familymedvault.com"),
   title: {
-    default: "FamilyMedVault — Family health records & emergency readiness",
+    default: siteTitle,
     template: "%s · FamilyMedVault",
   },
-  description:
-    "Organize family medical records, appointments, medications, and emergency health info in one secure place.",
+  description: siteDescription,
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "https://www.familymedvault.com",
+    siteName: "FamilyMedVault",
+    title: siteTitle,
+    description: siteDescription,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: siteTitle,
+    description: siteDescription,
+  },
 };
 
 export default function RootLayout({
@@ -32,7 +50,10 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        {children}
+        <Analytics />
+      </body>
     </html>
   );
 }

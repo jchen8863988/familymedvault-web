@@ -7,8 +7,16 @@ create table if not exists public.community_ideas (
   body text not null check (char_length(body) <= 8000),
   author_name text,
   author_email text,
+  pinned boolean not null default false,
+  submitter_ip_hash text,
   created_at timestamptz not null default now()
 );
+
+create index if not exists community_ideas_pinned_created_idx
+  on public.community_ideas (pinned desc, created_at desc);
+
+create index if not exists community_ideas_ip_hash_created_idx
+  on public.community_ideas (submitter_ip_hash, created_at desc);
 
 create table if not exists public.idea_votes (
   id uuid primary key default gen_random_uuid(),

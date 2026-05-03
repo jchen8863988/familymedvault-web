@@ -7,6 +7,7 @@ type RawIdea = {
   body: string;
   author_name: string | null;
   author_email: string | null;
+  pinned: boolean | null;
   created_at: string;
   idea_votes: { count: number }[] | null;
   idea_comments: { count: number }[] | null;
@@ -41,11 +42,13 @@ export async function fetchCommunityIdeas(): Promise<{
       body,
       author_name,
       author_email,
+      pinned,
       created_at,
       idea_votes(count),
       idea_comments(count)
     `,
     )
+    .order("pinned", { ascending: false })
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -63,6 +66,7 @@ export async function fetchCommunityIdeas(): Promise<{
     created_at: row.created_at,
     vote_count: nestedCount(row.idea_votes),
     comment_count: nestedCount(row.idea_comments),
+    pinned: row.pinned ?? false,
   }));
 
   return { configured: true, ideas };

@@ -1,12 +1,27 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { allowCommunityIdeaSubmission, hashClientIp } from "@/lib/rate-limit";
 import { createPublicSupabase } from "@/lib/supabase/public";
 
 export type ActionResult =
   | { ok: true }
   | { ok: false; error: string };
+
+async function clientIpHash(): Promise<string | null> {
+  try {
+    const h = await headers();
+    const xff = h.get("x-forwarded-for");
+    const first = xff?.split(",")[0]?.trim();
+    const ip = first || h.get("x-real-ip") || "";
+    if (!ip) return null;
+    return hashClientIp(ip);
+  } catch {
+    return null;
+  }
+}
 
 export async function createCommunityIdea(input: {
   title: string;
@@ -25,11 +40,20 @@ export async function createCommunityIdea(input: {
     return { ok: false, error: "标题与正文不能为空。" };
   }
 
+  const ipHash = await clientIpHash();
+  if (ipHash) {
+    const rate = await allowCommunityIdeaSubmission(supabase, ipHash);
+    if (!rate.ok) {
+      return { ok: false, error: "提交过于频繁，请稍后再试。" };
+    }
+  }
+
   const { error } = await supabase.from("community_ideas").insert({
     title,
     body,
     author_name: input.authorName?.trim() || null,
     author_email: input.authorEmail?.trim() || null,
+    submitter_ip_hash: ipHash,
   });
 
   if (error) {
