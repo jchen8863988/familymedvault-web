@@ -3,6 +3,9 @@ import { CommunityClient } from "@/components/CommunityClient";
 import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
 import { fetchCommunityIdeas } from "./data";
 
+/** Always read fresh data from Supabase (no stale prerender after deletes). */
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Community Ideas · FamilyMedVault",
   description:
