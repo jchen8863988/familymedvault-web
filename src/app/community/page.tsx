@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CommunityClient } from "@/components/CommunityClient";
 import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
+import { fetchCommunityIdeas } from "./data";
 
 export const metadata = {
   title: "Community Ideas · FamilyMedVault",
@@ -8,7 +9,9 @@ export const metadata = {
     "Share problems, tool wishes, and feature ideas. Help validate what we build next.",
 };
 
-export default function CommunityPage() {
+export default async function CommunityPage() {
+  const { configured, ideas } = await fetchCommunityIdeas();
+
   return (
     <div className="min-h-screen bg-white text-slate-900">
       <SiteHeader />
@@ -19,9 +22,8 @@ export default function CommunityPage() {
         </p>
         <h1 className="mt-2 text-4xl font-bold">Community Ideas</h1>
         <p className="mt-4 text-lg text-slate-600">
-          Each submission feeds our roadmap: new app concepts, honest pain
-          points, and high-signal market validation. Next step: connect this
-          board to Supabase for persistence, votes, and comments.
+          Submissions are stored in Supabase: vote once per browser, comment on
+          each idea, and sort by hottest or newest.
         </p>
         <div className="mt-6 flex flex-wrap gap-3 text-sm text-slate-600">
           <span className="rounded-full bg-slate-100 px-3 py-1">我遇到的问题</span>
@@ -31,13 +33,16 @@ export default function CommunityPage() {
         </div>
       </div>
 
-      <CommunityClient />
+      <CommunityClient configured={configured} initialIdeas={ideas} />
 
       <section className="border-t border-slate-100 bg-slate-50 py-12">
         <div className="mx-auto max-w-4xl px-6 text-center text-sm text-slate-600">
           <p>
             Prefer the short form on the homepage?{" "}
-            <Link href="/#community" className="font-medium text-teal-800 underline-offset-2 hover:underline">
+            <Link
+              href="/#community"
+              className="font-medium text-teal-800 underline-offset-2 hover:underline"
+            >
               Jump to Tell us your pain points
             </Link>
           </p>

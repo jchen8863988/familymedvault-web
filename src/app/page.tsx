@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { submitHomePulse } from "@/app/community/actions";
 import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
 
 /** Set when the app is live on the App Store, e.g. https://apps.apple.com/app/idXXXXXXXX */
@@ -107,10 +108,10 @@ export default function HomePage() {
             </Link>{" "}
             for structured submissions, votes, and discussion.
           </p>
-          <form className="mt-10 grid gap-4 text-left" action="/community">
+          <form className="mt-10 grid gap-4 text-left" action={submitHomePulse}>
             <p className="text-sm text-slate-500">
-              Quick pulse check — optional name/email; full board lives on
-              Community.
+              Quick pulse check — optional name/email; submissions appear on
+              Community Ideas (Supabase).
             </p>
             <input
               name="name"
@@ -127,6 +128,7 @@ export default function HomePage() {
             />
             <textarea
               name="message"
+              required
               className="min-h-[180px] rounded-2xl border border-slate-200 p-4 outline-none focus:border-slate-400"
               placeholder="What tool do you wish existed? What daily problem wastes your time?"
             />
@@ -138,10 +140,10 @@ export default function HomePage() {
                 Open Community Ideas
               </Link>
               <button
-                type="button"
+                type="submit"
                 className="rounded-2xl border border-slate-200 px-6 py-4 text-slate-700 transition hover:bg-slate-50"
               >
-                Submit (wire to Supabase next)
+                Submit to Community
               </button>
             </div>
           </form>
