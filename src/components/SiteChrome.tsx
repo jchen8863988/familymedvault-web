@@ -14,6 +14,7 @@ export async function SiteHeader() {
           <Link href="/#features">{t("features")}</Link>
           <Link href="/apps">{t("apps")}</Link>
           <Link href="/community">{t("community")}</Link>
+          <Link href="/#download">{t("siteApp")}</Link>
         </nav>
         <div className="flex items-center gap-2">
           <LocaleSwitcher />
@@ -28,6 +29,12 @@ export async function SiteHeader() {
             className="rounded-xl border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-800 md:hidden"
           >
             {t("community")}
+          </Link>
+          <Link
+            href="/#download"
+            className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-800 md:hidden"
+          >
+            {t("siteApp")}
           </Link>
         </div>
       </div>
