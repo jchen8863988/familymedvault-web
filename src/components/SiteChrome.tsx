@@ -14,7 +14,6 @@ export async function SiteHeader() {
           <Link href="/#features">{t("features")}</Link>
           <Link href="/apps">{t("apps")}</Link>
           <Link href="/community">{t("community")}</Link>
-          <Link href="/#download">{t("download")}</Link>
         </nav>
         <div className="flex items-center gap-2">
           <LocaleSwitcher />
