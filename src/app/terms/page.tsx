@@ -11,7 +11,7 @@ export default function TermsPage() {
       <main className="mx-auto max-w-3xl px-6 py-16">
         <h1 className="text-3xl font-bold text-slate-900">服务条款</h1>
         <p className="mt-2 text-sm text-slate-500">
-          最近更新：2026 年 5 月（随产品迭代可能修订，请以本页为准）。
+          最近更新：2026 年 5 月 3 日（含独立开发者责任边界与 App Store 衔接说明）。
         </p>
         <div className="mt-10">
           <TermsDoc />
