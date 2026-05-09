@@ -57,7 +57,7 @@
       "AI health assistant — ask in plain language",
       "Emergency card export for urgent care"
     ],
-    "ctaAppStore": "App Store · Coming soon",
+    "ctaAppStore": "Download on the App Store",
     "ctaPain": "Share a pain point",
     "visualCards": [
       "Medical records",
@@ -93,6 +93,13 @@
         "desc": "Parents, kids, and loved ones — permissions you control."
       }
     ],
+    "aiCreditsTitle": "AI Credits — fair, sustainable help",
+    "aiCreditsLead": "Credits reset each subscription period (aligned with App Store billing); unused credits do not roll over. Different AI tasks cost different amounts — see below. Referral bonuses may apply in the app.",
+    "aiCreditsCosts": "Examples: doctor visit prep = 1 credit; lab explanation = 3; symptom/medical summary = 5; long PDF/chart analysis = 10.",
+    "aiCreditsFree": "Free: 10 credits per period — try core AI; long PDF analysis needs Premium+.",
+    "aiCreditsPremium": "Premium: 300 credits per period — labs, visit prep, meds, summaries, and larger chart context.",
+    "aiCreditsFamily": "Family+: 800 credits per period — higher volume for busy households; shared household pools are on our roadmap.",
+    "aiCreditsAbuse": "Automatic safeguards (rate limits, oversized requests, repeat OCR-style calls) keep latency low for paying subscribers.",
     "communityTitle": "Tell us what problem you need solved",
     "communityLead": "Your pain points become our roadmap — new app ideas, validation, and a future product lab. Jump into",
     "communityLink": "Community Ideas",
@@ -114,7 +121,7 @@
       }
     ],
     "downloadTitle": "Protect what matters most",
-    "downloadLead": "The iOS app is in App Store review; we will link the official listing here when it is live.",
+    "downloadLead": "FamilyMedVault is available on the App Store for iPhone and iPad.",
     "downloadPending": "Pending App Store release",
     "downloadButton": "Download on the App Store"
   },

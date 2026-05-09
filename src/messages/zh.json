@@ -57,7 +57,7 @@
       "AI 健康助手 · 自然语言提问",
       "紧急卡片 · 急诊与出行可导出"
     ],
-    "ctaAppStore": "App Store · 等待发布",
+    "ctaAppStore": "在 App Store 下载",
     "ctaPain": "说出你的痛点",
     "visualCards": [
       "医疗记录",
@@ -93,6 +93,13 @@
         "desc": "父母子女与亲友 — 权限由你掌控。"
       }
     ],
+    "aiCreditsTitle": "AI Credits — 公平、可持续的医疗辅助",
+    "aiCreditsLead": "Credits 随 App Store 订阅周期重置；未用完不滚存。不同 AI 任务消耗不同额度 — 见下方说明。App 内推荐好友可获得额外积分奖励。",
+    "aiCreditsCosts": "示例：就诊准备 = 1 点；化验解读 = 3 点；症状/医疗摘要 = 5 点；长 PDF 病历分析 = 10 点。",
+    "aiCreditsFree": "免费版：每周期 10 点 — 体验核心 AI；长 PDF 分析需 Premium+。",
+    "aiCreditsPremium": "Premium：每周期 300 点 — 化验解读、就诊准备、用药情境与更长病历上下文。",
+    "aiCreditsFamily": "Family+：每周期 800 点 — 多成员高频场景；家庭共享额度已在路线图中推进。",
+    "aiCreditsAbuse": "系统自动限制异常高频、超长文本与重复 OCR 式调用，保障订阅用户的稳定体验。",
     "communityTitle": "告诉我们你想解决什么问题",
     "communityLead": "你的痛点会成为产品路线 — 新想法、真实验证与未来实验。进入",
     "communityLink": "社区想法",
@@ -114,7 +121,7 @@
       }
     ],
     "downloadTitle": "守护最重要的人",
-    "downloadLead": "iOS 版正在 App Store 审核；上架后在此提供官方下载链接。",
+    "downloadLead": "FamilyMedVault 已在 App Store 上架，支持 iPhone 与 iPad。",
     "downloadPending": "等待发布中 · Pending App Store release",
     "downloadButton": "在 App Store 下载"
   },

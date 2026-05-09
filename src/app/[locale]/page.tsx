@@ -8,8 +8,9 @@ import {
 } from "@/lib/seo";
 import { isSupabaseConfigured } from "@/lib/supabase/public";
 
-/** Set when the app is live on the App Store, e.g. https://apps.apple.com/app/idXXXXXXXX */
-const APP_STORE_URL: string | null = null;
+/** Official App Store listing (when null, homepage shows “pending release” copy). */
+const APP_STORE_URL: string | null =
+  "https://apps.apple.com/app/familymedvault/id6764078108";
 
 const PULSE_KEYS = new Set([
   "blocked",
@@ -97,7 +98,10 @@ export default async function HomePage({
           </ul>
           <div className="mt-8 flex flex-wrap gap-4">
             <a
-              href="#download"
+              href={APP_STORE_URL ?? "#download"}
+              {...(APP_STORE_URL
+                ? { target: "_blank", rel: "noopener noreferrer" }
+                : {})}
               className="rounded-2xl bg-slate-900 px-6 py-3 text-white transition hover:bg-slate-800"
             >
               {t("ctaAppStore")}
@@ -141,6 +145,32 @@ export default async function HomePage({
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section id="ai-credits" className="py-16">
+        <div className="mx-auto max-w-6xl px-6">
+          <h2 className="text-center text-3xl font-bold">{t("aiCreditsTitle")}</h2>
+          <p className="mx-auto mt-4 max-w-3xl text-center text-slate-600">
+            {t("aiCreditsLead")}
+          </p>
+          <ul className="mx-auto mt-10 max-w-3xl list-none space-y-4 text-slate-700">
+            <li className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+              {t("aiCreditsFree")}
+            </li>
+            <li className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+              {t("aiCreditsPremium")}
+            </li>
+            <li className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+              {t("aiCreditsFamily")}
+            </li>
+          </ul>
+          <p className="mx-auto mt-6 max-w-3xl text-center text-sm text-slate-600">
+            {t("aiCreditsCosts")}
+          </p>
+          <p className="mx-auto mt-8 max-w-3xl text-center text-sm text-slate-500">
+            {t("aiCreditsAbuse")}
+          </p>
         </div>
       </section>
 
