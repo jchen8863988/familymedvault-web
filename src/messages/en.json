@@ -57,6 +57,15 @@
     "bookedWithPush": "Booked! We'll notify you before your slot and when spots open.",
     "bookedDemo": "Booked! (Demo mode)",
     "error": "Booking failed. Please try again.",
+    "myBookingsTitle": "My bookings",
+    "myBookingSpot": "Spot {label}",
+    "myBookingsHint": "Saved on this browser only — use the same device to cancel, or book again if you switched phones.",
+    "cancelBooking": "Cancel booking",
+    "cancelConfirm": "Cancel this booking? The spot will be released for neighbors.",
+    "cancelledSuccess": "Booking cancelled",
+    "cancelFailed": "Could not cancel — refresh and try again",
+    "cancelNotYours": "You can only cancel bookings made on this device",
+    "cancelling": "Cancelling…",
     "smsBody": "AmpNest: {name}, spot {spot} booked for {time}. Reminder 10 min before start."
   },
   "localeSwitcher": {

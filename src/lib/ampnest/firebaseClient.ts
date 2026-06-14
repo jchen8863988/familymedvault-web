@@ -9,12 +9,13 @@ import {
   set,
   update,
   get,
+  remove,
   type Database,
 } from "firebase/database";
 import { getAmpNestFirebaseConfig, isAmpNestFirebaseConfigured } from "./config";
 import type { BookingSlot, Building, ChargerSpot } from "./types";
 import { isBookingActive, slotConflictsWithBookings } from "./bookingConflict";
-import { enqueueBookingSmsQueue } from "./smsQueue";
+import { enqueueBookingSmsQueue, cancelBookingSmsQueue } from "./smsQueue";
 
 let app: FirebaseApp | undefined;
 let db: Database | undefined;
@@ -91,4 +92,33 @@ export async function createFirebaseBooking(
   await enqueueBookingSmsQueue(database, full, spotLabel);
 
   return full;
+}
+
+/** Cancel a booking created on web (same device verifies via stored userId). */
+export async function cancelFirebaseBooking(
+  bookingId: string,
+  spotId: string,
+  userId: string,
+): Promise<void> {
+  const database = getDb();
+  if (!database) throw new Error("FIREBASE_NOT_CONFIGURED");
+
+  const bookingSnap = await get(ref(database, `bookings/${bookingId}`));
+  if (!bookingSnap.exists()) throw new Error("BOOKING_NOT_FOUND");
+
+  const booking = bookingSnap.val() as BookingSlot;
+  if (booking.userId !== userId) throw new Error("NOT_YOUR_BOOKING");
+  if (!isBookingActive(booking)) throw new Error("BOOKING_NOT_ACTIVE");
+
+  await cancelBookingSmsQueue(database, bookingId);
+  await remove(ref(database, `bookings/${bookingId}`));
+
+  const spotSnap = await get(ref(database, `spots/${spotId}`));
+  const spot = spotSnap.val() as ChargerSpot | null;
+  if (spot?.nextBooking?.id === bookingId) {
+    await update(ref(database, `spots/${spotId}`), {
+      status: "free",
+      nextBooking: null,
+    });
+  }
 }

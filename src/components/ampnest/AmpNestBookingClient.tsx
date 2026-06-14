@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { slotConflictsWithBookings } from "@/lib/ampnest/bookingConflict";
 import {
   createFirebaseBooking,
+  cancelFirebaseBooking,
   fetchBookingsForSpot,
   loadBuildingFromFirebase,
 } from "@/lib/ampnest/firebaseClient";
@@ -15,12 +16,19 @@ import {
   parseSetupParam,
   saveBuildingPayload,
 } from "@/lib/ampnest/storage";
-import type { BookingSlot, Building, ChargerSpot } from "@/lib/ampnest/types";
-import { WebPushBanner } from "@/components/ampnest/WebPushBanner";
 import {
   isWebPushEnabled,
   watchSpotsForLocalNotifications,
 } from "@/lib/ampnest/webPush";
+import { WebPushBanner } from "@/components/ampnest/WebPushBanner";
+import {
+  loadMyBookings,
+  removeMyBooking,
+  saveMyBooking,
+  type StoredWebBooking,
+} from "@/lib/ampnest/myBookings";
+
+import type { BookingSlot, Building, ChargerSpot } from "@/lib/ampnest/types";
 
 const DEMO_SPOTS: ChargerSpot[] = [
   { id: "demo-1", buildingId: "demo", label: "#1", number: 1, status: "free", chargerPowerKw: 7.2 },
@@ -84,11 +92,21 @@ export function AmpNestBookingClient() {
   const [endTime, setEndTime] = useState("");
   const [toast, setToast] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [myBookings, setMyBookings] = useState<StoredWebBooking[]>([]);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3500);
   }, []);
+
+  useEffect(() => {
+    if (!inviteCode) {
+      setMyBookings([]);
+      return;
+    }
+    setMyBookings(loadMyBookings(inviteCode));
+  }, [inviteCode, spots]);
 
   useEffect(() => {
     if (!building?.id || mode !== "live") return;
@@ -265,6 +283,9 @@ export function AmpNestBookingClient() {
         }
       }
 
+      saveMyBooking(full, inviteCode, selectedSpot.label);
+      setMyBookings(loadMyBookings(inviteCode));
+
       showToast(
         mode === "live"
           ? phone.trim()
@@ -281,6 +302,47 @@ export function AmpNestBookingClient() {
       }
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleCancelBooking = async (entry: StoredWebBooking) => {
+    if (!window.confirm(t("cancelConfirm"))) return;
+
+    setCancellingId(entry.id);
+    try {
+      if (mode === "live") {
+        await cancelFirebaseBooking(entry.id, entry.spotId, entry.userId);
+      } else {
+        const nextBookings = bookings.map((bk) =>
+          bk.id === entry.id ? { ...bk, status: "cancelled" as const } : bk,
+        );
+        const nextSpots = spots.map((s) => {
+          if (s.id === entry.spotId && s.nextBooking?.id === entry.id) {
+            return { ...s, status: "free" as const, nextBooking: undefined };
+          }
+          return s;
+        });
+        setBookings(nextBookings);
+        setSpots(nextSpots);
+        if (inviteCode && building) {
+          saveBuildingPayload(inviteCode, {
+            building,
+            spots: nextSpots,
+            bookings: nextBookings,
+          });
+        }
+      }
+      removeMyBooking(entry.id);
+      setMyBookings(loadMyBookings(inviteCode));
+      showToast(t("cancelledSuccess"));
+    } catch (e) {
+      const msg =
+        e instanceof Error && e.message === "NOT_YOUR_BOOKING"
+          ? t("cancelNotYours")
+          : t("cancelFailed");
+      showToast(msg);
+    } finally {
+      setCancellingId(null);
     }
   };
 
@@ -340,6 +402,47 @@ export function AmpNestBookingClient() {
           {pushReady && (
             <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-medium text-emerald-900">
               ✓ {t("pushEnabled")}
+            </div>
+          )}
+
+          {myBookings.length > 0 && (
+            <div className="mb-5">
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">
+                {t("myBookingsTitle")}
+              </p>
+              <ul className="space-y-2">
+                {myBookings.map((entry) => {
+                  const label =
+                    entry.spotLabel ??
+                    spots.find((s) => s.id === entry.spotId)?.label ??
+                    entry.spotId;
+                  return (
+                    <li
+                      key={entry.id}
+                      className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4"
+                    >
+                      <div className="text-sm font-medium text-slate-900">
+                        {t("myBookingSpot", { label })}
+                      </div>
+                      <div className="mt-0.5 text-xs text-slate-600">
+                        {formatTime(entry.startTime)} – {formatTime(entry.endTime)}
+                        {entry.userName ? ` · ${entry.userName}` : ""}
+                      </div>
+                      <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+                        {t("myBookingsHint")}
+                      </p>
+                      <button
+                        type="button"
+                        disabled={cancellingId === entry.id}
+                        onClick={() => void handleCancelBooking(entry)}
+                        className="mt-3 w-full rounded-xl border border-slate-300 bg-white py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                      >
+                        {cancellingId === entry.id ? t("cancelling") : t("cancelBooking")}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           )}
 

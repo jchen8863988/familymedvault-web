@@ -57,6 +57,15 @@
     "bookedWithPush": "预约成功！我们会在预约开始前和充电位空出时通知你。",
     "bookedDemo": "预约成功！（演示模式）",
     "error": "预约失败，请重试。",
+    "myBookingsTitle": "我的预约",
+    "myBookingSpot": "充电位 {label}",
+    "myBookingsHint": "预约记录保存在本浏览器，换手机或清除数据后需重新预约。",
+    "cancelBooking": "取消预约",
+    "cancelConfirm": "确定要取消这次预约吗？取消后充电位将释放给邻居使用。",
+    "cancelledSuccess": "预约已取消",
+    "cancelFailed": "无法取消，请刷新页面后重试",
+    "cancelNotYours": "只能取消本设备上的预约",
+    "cancelling": "取消中…",
     "smsBody": "AmpNest：{name}，充电位 {spot} 已预约 {time}。开始前 10 分钟会再发短信提醒。"
   },
   "localeSwitcher": {
