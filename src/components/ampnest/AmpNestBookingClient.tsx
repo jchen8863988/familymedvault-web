@@ -3,13 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { slotConflictsWithBookings } from "@/lib/ampnest/bookingConflict";
-import {
-  createFirebaseBooking,
-  cancelFirebaseBooking,
-  fetchBookingsForSpot,
-  loadBuildingFromFirebase,
-} from "@/lib/ampnest/firebaseClient";
+import { Link } from "@/i18n/navigation";
+import { loadBuildingFromFirebase, cancelFirebaseBooking } from "@/lib/ampnest/firebaseClient";
 import { isAmpNestFirebaseConfigured } from "@/lib/ampnest/config";
 import {
   loadBuildingPayload,
@@ -22,11 +17,25 @@ import {
 } from "@/lib/ampnest/webPush";
 import { WebPushBanner } from "@/components/ampnest/WebPushBanner";
 import {
-  loadMyBookings,
+  loadWaitlist,
+  removeWaitlistEntry,
+  saveWaitlistEntry,
+  hasWaitlistForSpot,
+  type StoredWaitlistEntry,
+} from "@/lib/ampnest/myWaitlist";
+import {
+  collectRecoverableWebBookings,
+  markMyBookingCancelled,
   removeMyBooking,
   saveMyBooking,
   type StoredWebBooking,
 } from "@/lib/ampnest/myBookings";
+import {
+  getSavedUserEmail,
+  getSavedUserName,
+  saveUserEmail,
+  saveUserName,
+} from "@/lib/ampnest/webSession";
 
 import type { BookingSlot, Building, ChargerSpot } from "@/lib/ampnest/types";
 
@@ -85,14 +94,11 @@ export function AmpNestBookingClient() {
 
   const [selectedSpot, setSelectedSpot] = useState<ChargerSpot | null>(null);
   const [userName, setUserName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [showSms, setShowSms] = useState(false);
+  const [email, setEmail] = useState("");
   const [pushReady, setPushReady] = useState(false);
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
   const [toast, setToast] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [myBookings, setMyBookings] = useState<StoredWebBooking[]>([]);
+  const [myWaitlist, setMyWaitlist] = useState<StoredWaitlistEntry[]>([]);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   const showToast = useCallback((msg: string) => {
@@ -101,11 +107,36 @@ export function AmpNestBookingClient() {
   }, []);
 
   useEffect(() => {
+    setUserName(getSavedUserName());
+    setEmail(getSavedUserEmail());
+  }, []);
+
+  useEffect(() => {
+    if (userName.trim()) saveUserName(userName);
+  }, [userName]);
+
+  useEffect(() => {
+    if (email.trim()) saveUserEmail(email);
+  }, [email]);
+
+  const myBookings = useMemo(
+    () => (inviteCode ? collectRecoverableWebBookings(inviteCode, spots, userName) : []),
+    [inviteCode, spots, userName],
+  );
+
+  useEffect(() => {
+    if (!inviteCode) return;
+    for (const b of myBookings) {
+      saveMyBooking(b, inviteCode, b.spotLabel);
+    }
+  }, [inviteCode, myBookings]);
+
+  useEffect(() => {
     if (!inviteCode) {
-      setMyBookings([]);
+      setMyWaitlist([]);
       return;
     }
-    setMyBookings(loadMyBookings(inviteCode));
+    setMyWaitlist(loadWaitlist(inviteCode));
   }, [inviteCode, spots]);
 
   useEffect(() => {
@@ -199,15 +230,16 @@ export function AmpNestBookingClient() {
     return t("statusBooked");
   };
 
-  const openBooking = (spot: ChargerSpot) => {
-    if (spot.status !== "free") return;
+  const openWaitlist = (spot: ChargerSpot) => {
+    if (spot.status === "free") {
+      showToast(t("webCantBookFree"));
+      return;
+    }
+    if (spot.status === "booked") {
+      showToast(t("webCantBookBooked"));
+      return;
+    }
     setSelectedSpot(spot);
-    const now = new Date();
-    now.setMinutes(0, 0, 0);
-    if (now.getHours() < 21) now.setHours(21);
-    const end = new Date(now.getTime() + 2 * 3600_000);
-    setStartTime(toLocalInput(now));
-    setEndTime(toLocalInput(end));
   };
 
   const closeBooking = () => setSelectedSpot(null);
@@ -220,127 +252,83 @@ export function AmpNestBookingClient() {
     window.location.href = url.toString();
   };
 
-  const handleConfirm = async () => {
+  const handleJoinWaitlist = async () => {
     if (!selectedSpot || !userName.trim()) {
       showToast(t("needName"));
       return;
     }
-    if (!startTime || !endTime) {
-      showToast(t("needTime"));
+    if (!email.trim()) {
+      showToast(t("emailRequired"));
       return;
     }
-
-    const start = new Date(startTime);
-    const end = new Date(endTime);
-    if (end <= start) {
-      showToast(t("invalidRange"));
+    if (hasWaitlistForSpot(inviteCode, selectedSpot.id, email.trim())) {
+      showToast(t("waitlistSuccess"));
+      closeBooking();
       return;
     }
 
     setSubmitting(true);
     try {
-      let spotBookings = bookings.filter((b) => b.spotId === selectedSpot.id);
-      if (mode === "live") {
-        spotBookings = await fetchBookingsForSpot(selectedSpot.id);
-      }
-
-      if (slotConflictsWithBookings(selectedSpot.id, start, end, spotBookings)) {
-        showToast(t("conflict"));
-        return;
-      }
-
-      const bookingBase = {
+      const entry: StoredWaitlistEntry = {
+        id: `wl-${Date.now()}`,
         spotId: selectedSpot.id,
-        buildingId: building?.id ?? "local",
-        userId: `web-${Date.now()}`,
+        inviteCode,
+        spotLabel: selectedSpot.label,
         userName: userName.trim(),
-        ...(phone.trim() ? { phone: phone.trim() } : {}),
-        startTime: start.toISOString(),
-        endTime: end.toISOString(),
-        status: "pending" as const,
+        email: email.trim(),
+        joinedAt: new Date().toISOString(),
       };
-
-      let full: BookingSlot;
-
-      if (mode === "live") {
-        full = await createFirebaseBooking(bookingBase);
-      } else {
-        full = { ...bookingBase, id: `bk-${Date.now()}` };
-        const nextSpots = spots.map((s) =>
-          s.id === selectedSpot.id
-            ? { ...s, status: "booked" as const, nextBooking: full }
-            : s,
-        );
-        const nextBookings = [...bookings, full];
-        setSpots(nextSpots);
-        setBookings(nextBookings);
-        if (inviteCode) {
-          saveBuildingPayload(inviteCode, {
-            building: building!,
-            spots: nextSpots,
-            bookings: nextBookings,
-          });
-        }
-      }
-
-      saveMyBooking(full, inviteCode, selectedSpot.label);
-      setMyBookings(loadMyBookings(inviteCode));
-
-      showToast(
-        mode === "live"
-          ? phone.trim()
-            ? t("bookedWithSms")
-            : t("bookedWithPush")
-          : t("bookedDemo"),
-      );
+      saveWaitlistEntry(entry);
+      setMyWaitlist(loadWaitlist(inviteCode));
+      showToast(t("waitlistSuccess"));
       closeBooking();
-    } catch (e) {
-      if (e instanceof Error && e.message === "BOOKING_CONFLICT") {
-        showToast(t("conflict"));
-      } else {
-        showToast(t("error"));
-      }
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleCancelBooking = async (entry: StoredWebBooking) => {
-    if (!window.confirm(t("cancelConfirm"))) return;
-
+  const handleCancelWaitlist = (entry: StoredWaitlistEntry) => {
+    if (!window.confirm(t("cancelWaitlistConfirm"))) return;
     setCancellingId(entry.id);
+    removeWaitlistEntry(entry.id);
+    setMyWaitlist(loadWaitlist(inviteCode));
+    showToast(t("waitlistCancelled"));
+    setCancellingId(null);
+  };
+
+  const handleCancelBooking = async (booking: StoredWebBooking) => {
+    if (!window.confirm(t("cancelConfirm"))) return;
+    setCancellingId(booking.id);
     try {
-      if (mode === "live") {
-        await cancelFirebaseBooking(entry.id, entry.spotId, entry.userId);
+      if (mode === "live" && isAmpNestFirebaseConfigured()) {
+        await cancelFirebaseBooking(booking.id, booking.spotId, booking.userId);
       } else {
-        const nextBookings = bookings.map((bk) =>
-          bk.id === entry.id ? { ...bk, status: "cancelled" as const } : bk,
+        setSpots((prev) =>
+          prev.map((s) =>
+            s.nextBooking?.id === booking.id
+              ? { ...s, status: "free" as const, nextBooking: undefined }
+              : s,
+          ),
         );
-        const nextSpots = spots.map((s) => {
-          if (s.id === entry.spotId && s.nextBooking?.id === entry.id) {
-            return { ...s, status: "free" as const, nextBooking: undefined };
+        if (mode === "local") {
+          const local = loadBuildingPayload(inviteCode);
+          if (local) {
+            saveBuildingPayload(inviteCode, {
+              ...local,
+              spots: local.spots.map((s) =>
+                s.nextBooking?.id === booking.id
+                  ? { ...s, status: "free" as const, nextBooking: undefined }
+                  : s,
+              ),
+            });
           }
-          return s;
-        });
-        setBookings(nextBookings);
-        setSpots(nextSpots);
-        if (inviteCode && building) {
-          saveBuildingPayload(inviteCode, {
-            building,
-            spots: nextSpots,
-            bookings: nextBookings,
-          });
         }
       }
-      removeMyBooking(entry.id);
-      setMyBookings(loadMyBookings(inviteCode));
+      markMyBookingCancelled(booking.id);
+      removeMyBooking(booking.id);
       showToast(t("cancelledSuccess"));
-    } catch (e) {
-      const msg =
-        e instanceof Error && e.message === "NOT_YOUR_BOOKING"
-          ? t("cancelNotYours")
-          : t("cancelFailed");
-      showToast(msg);
+    } catch {
+      showToast(t("cancelFailed"));
     } finally {
       setCancellingId(null);
     }
@@ -405,43 +393,91 @@ export function AmpNestBookingClient() {
             </div>
           )}
 
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-950">
+            {t("rightsBanner")}{" "}
+            <Link href="/apps" className="font-medium text-emerald-800 underline underline-offset-2">
+              {t("downloadAppLink")}
+            </Link>
+          </div>
+
+          <div className="mb-4 rounded-xl border border-slate-200 bg-white px-4 py-3">
+            <label className="block text-xs font-medium text-slate-500">{t("nameLookupLabel")}</label>
+            <input
+              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900"
+              value={userName}
+              onChange={(e) => setUserName(e.target.value)}
+              placeholder={t("nameLookupPlaceholder")}
+            />
+            <p className="mt-1.5 text-[11px] leading-relaxed text-slate-500">{t("nameLookupHint")}</p>
+          </div>
+
           {myBookings.length > 0 && (
             <div className="mb-5">
               <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">
                 {t("myBookingsTitle")}
               </p>
               <ul className="space-y-2">
-                {myBookings.map((entry) => {
-                  const label =
-                    entry.spotLabel ??
-                    spots.find((s) => s.id === entry.spotId)?.label ??
-                    entry.spotId;
-                  return (
-                    <li
-                      key={entry.id}
-                      className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4"
+                {myBookings.map((booking) => (
+                  <li
+                    key={booking.id}
+                    className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4"
+                  >
+                    <div className="text-sm font-medium text-slate-900">
+                      {t("myBookingSpot", { label: booking.spotLabel ?? booking.spotId })}
+                    </div>
+                    <div className="mt-0.5 text-xs text-slate-600">
+                      {formatTime(booking.startTime)} – {formatTime(booking.endTime)}
+                    </div>
+                    <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+                      {t("myBookingsHint")}
+                    </p>
+                    <button
+                      type="button"
+                      disabled={cancellingId === booking.id}
+                      onClick={() => void handleCancelBooking(booking)}
+                      className="mt-3 w-full rounded-xl border border-red-200 bg-white py-2.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
                     >
+                      {cancellingId === booking.id ? t("cancelling") : t("cancelBooking")}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {myWaitlist.length > 0 && (
+            <div className="mb-5">
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">
+                {t("myWaitlistTitle")}
+              </p>
+              <ul className="space-y-2">
+                {myWaitlist.map((entry) => (
+                  <li
+                    key={entry.id}
+                    className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4"
+                  >
+                    <div className="flex items-center justify-between gap-2">
                       <div className="text-sm font-medium text-slate-900">
-                        {t("myBookingSpot", { label })}
+                        {t("spotLabel", { label: entry.spotLabel ?? entry.spotId })}
                       </div>
-                      <div className="mt-0.5 text-xs text-slate-600">
-                        {formatTime(entry.startTime)} – {formatTime(entry.endTime)}
-                        {entry.userName ? ` · ${entry.userName}` : ""}
-                      </div>
-                      <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
-                        {t("myBookingsHint")}
-                      </p>
-                      <button
-                        type="button"
-                        disabled={cancellingId === entry.id}
-                        onClick={() => void handleCancelBooking(entry)}
-                        className="mt-3 w-full rounded-xl border border-slate-300 bg-white py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-                      >
-                        {cancellingId === entry.id ? t("cancelling") : t("cancelBooking")}
-                      </button>
-                    </li>
-                  );
-                })}
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-900">
+                        {t("webTierBadge")}
+                      </span>
+                    </div>
+                    <div className="mt-0.5 text-xs text-slate-600">{entry.email}</div>
+                    <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+                      {t("myWaitlistHint")}
+                    </p>
+                    <button
+                      type="button"
+                      disabled={cancellingId === entry.id}
+                      onClick={() => handleCancelWaitlist(entry)}
+                      className="mt-3 w-full rounded-xl border border-slate-300 bg-white py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                    >
+                      {cancellingId === entry.id ? t("cancelling") : t("cancelWaitlist")}
+                    </button>
+                  </li>
+                ))}
               </ul>
             </div>
           )}
@@ -457,7 +493,7 @@ export function AmpNestBookingClient() {
           ) : (
             <ul className="space-y-2">
               {spots.map((spot) => {
-                const canBook = spot.status === "free";
+                const canWaitlist = spot.status === "occupied";
                 const sub =
                   spot.status === "occupied"
                     ? t("occupiedSub", {
@@ -466,18 +502,17 @@ export function AmpNestBookingClient() {
                       })
                     : spot.status === "booked" && spot.nextBooking
                       ? `${spot.nextBooking.userName} · ${formatTime(spot.nextBooking.startTime)} – ${formatTime(spot.nextBooking.endTime)}`
-                      : "Level 2 · 7.2 kW";
+                      : "Level 2 · 7.2 kW · App 预约";
 
                 return (
                   <li key={spot.id}>
                     <button
                       type="button"
-                      disabled={!canBook}
-                      onClick={() => openBooking(spot)}
+                      onClick={() => (canWaitlist ? openWaitlist(spot) : openWaitlist(spot))}
                       className={`w-full rounded-2xl border p-4 text-left transition ${
-                        canBook
-                          ? "border-slate-200 bg-white hover:border-emerald-300 hover:shadow-sm"
-                          : "cursor-default border-slate-100 bg-slate-50 opacity-70"
+                        canWaitlist
+                          ? "border-slate-200 bg-white hover:border-amber-300 hover:shadow-sm"
+                          : "cursor-default border-slate-100 bg-slate-50"
                       }`}
                     >
                       <div className="flex items-center gap-3">
@@ -510,6 +545,9 @@ export function AmpNestBookingClient() {
                           {statusLabel(spot.status)}
                         </span>
                       </div>
+                      {canWaitlist && (
+                        <p className="mt-2 text-xs font-medium text-amber-800">{t("joinWaitlist")} →</p>
+                      )}
                     </button>
                   </li>
                 );
@@ -520,65 +558,29 @@ export function AmpNestBookingClient() {
           {selectedSpot && (
             <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <h3 className="text-base font-semibold text-slate-900">
-                {t("bookTitle", { label: selectedSpot.label })}
+                {t("waitlistTitle")} · {selectedSpot.label}
               </h3>
+              <p className="mt-2 text-xs leading-relaxed text-slate-500">{t("waitlistDesc")}</p>
               <label className="mt-3 block text-xs text-slate-500">{t("name")}</label>
               <input
                 className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-slate-900"
                 value={userName}
                 onChange={(e) => setUserName(e.target.value)}
               />
-              {!showSms ? (
-                <button
-                  type="button"
-                  onClick={() => setShowSms(true)}
-                  className="mt-3 text-xs font-medium text-emerald-700 hover:underline"
-                >
-                  {t("showSms")}
-                </button>
-              ) : (
-                <>
-                  <label className="mt-3 block text-xs text-slate-500">{t("phone")}</label>
-                  <p className="mt-0.5 text-[11px] text-slate-400">{t("phoneOptional")}</p>
-                  <input
-                    type="tel"
-                    className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-slate-900"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowSms(false);
-                      setPhone("");
-                    }}
-                    className="mt-2 text-xs text-slate-500 hover:underline"
-                  >
-                    {t("hideSms")}
-                  </button>
-                </>
-              )}
-              <label className="mt-3 block text-xs text-slate-500">{t("start")}</label>
+              <label className="mt-3 block text-xs text-slate-500">{t("email")}</label>
               <input
-                type="datetime-local"
+                type="email"
                 className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-slate-900"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-              />
-              <label className="mt-3 block text-xs text-slate-500">{t("end")}</label>
-              <input
-                type="datetime-local"
-                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-slate-900"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
               <button
                 type="button"
                 disabled={submitting}
-                onClick={handleConfirm}
+                onClick={() => void handleJoinWaitlist()}
                 className="mt-4 w-full rounded-2xl bg-emerald-700 py-3 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-60"
               >
-                {t("confirm")}
+                {t("joinWaitlist")}
               </button>
               <button
                 type="button"
