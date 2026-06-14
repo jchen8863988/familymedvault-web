@@ -14,6 +14,7 @@ import {
 import { getAmpNestFirebaseConfig, isAmpNestFirebaseConfigured } from "./config";
 import type { BookingSlot, Building, ChargerSpot } from "./types";
 import { isBookingActive, slotConflictsWithBookings } from "./bookingConflict";
+import { enqueueBookingSmsQueue } from "./smsQueue";
 
 let app: FirebaseApp | undefined;
 let db: Database | undefined;
@@ -84,5 +85,10 @@ export async function createFirebaseBooking(
     status: "booked",
     nextBooking: full,
   });
+
+  const spotSnap = await get(ref(database, `spots/${booking.spotId}`));
+  const spotLabel = (spotSnap.val() as ChargerSpot | null)?.label ?? booking.spotId;
+  await enqueueBookingSmsQueue(database, full, spotLabel);
+
   return full;
 }

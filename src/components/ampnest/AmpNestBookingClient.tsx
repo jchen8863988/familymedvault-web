@@ -9,16 +9,18 @@ import {
   fetchBookingsForSpot,
   loadBuildingFromFirebase,
 } from "@/lib/ampnest/firebaseClient";
-import {
-  getAmpNestSmsWebhook,
-  isAmpNestFirebaseConfigured,
-} from "@/lib/ampnest/config";
+import { isAmpNestFirebaseConfigured } from "@/lib/ampnest/config";
 import {
   loadBuildingPayload,
   parseSetupParam,
   saveBuildingPayload,
 } from "@/lib/ampnest/storage";
 import type { BookingSlot, Building, ChargerSpot } from "@/lib/ampnest/types";
+import { WebPushBanner } from "@/components/ampnest/WebPushBanner";
+import {
+  isWebPushEnabled,
+  watchSpotsForLocalNotifications,
+} from "@/lib/ampnest/webPush";
 
 const DEMO_SPOTS: ChargerSpot[] = [
   { id: "demo-1", buildingId: "demo", label: "#1", number: 1, status: "free", chargerPowerKw: 7.2 },
@@ -76,6 +78,8 @@ export function AmpNestBookingClient() {
   const [selectedSpot, setSelectedSpot] = useState<ChargerSpot | null>(null);
   const [userName, setUserName] = useState("");
   const [phone, setPhone] = useState("");
+  const [showSms, setShowSms] = useState(false);
+  const [pushReady, setPushReady] = useState(false);
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [toast, setToast] = useState<string | null>(null);
@@ -85,6 +89,15 @@ export function AmpNestBookingClient() {
     setToast(msg);
     setTimeout(() => setToast(null), 3500);
   }, []);
+
+  useEffect(() => {
+    if (!building?.id || mode !== "live") return;
+    setPushReady(isWebPushEnabled(building.id));
+    const unsub = watchSpotsForLocalNotifications(building.id, spots, (key, values) =>
+      t(key as "pushSpotFree", values as Record<string, string>),
+    );
+    return unsub;
+  }, [building?.id, mode, spots, t]);
 
   const applyPayload = useCallback(
     (code: string, payload: { building: Building; spots: ChargerSpot[]; bookings?: BookingSlot[] }) => {
@@ -194,10 +207,6 @@ export function AmpNestBookingClient() {
       showToast(t("needName"));
       return;
     }
-    if (!phone.trim()) {
-      showToast(t("needPhone"));
-      return;
-    }
     if (!startTime || !endTime) {
       showToast(t("needTime"));
       return;
@@ -227,7 +236,7 @@ export function AmpNestBookingClient() {
         buildingId: building?.id ?? "local",
         userId: `web-${Date.now()}`,
         userName: userName.trim(),
-        phone: phone.trim(),
+        ...(phone.trim() ? { phone: phone.trim() } : {}),
         startTime: start.toISOString(),
         endTime: end.toISOString(),
         status: "pending" as const,
@@ -256,26 +265,13 @@ export function AmpNestBookingClient() {
         }
       }
 
-      const smsUrl = getAmpNestSmsWebhook();
-      const smsBody = t("smsBody", {
-        name: userName.trim(),
-        spot: selectedSpot.label,
-        time: start.toLocaleString(),
-      });
-
-      if (smsUrl) {
-        try {
-          await fetch(smsUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ to: phone.trim(), body: smsBody, type: "booking_start" }),
-          });
-        } catch {
-          /* non-fatal */
-        }
-      }
-
-      showToast(smsUrl ? t("bookedWithSms") : t("bookedDemo", { phone: phone.trim() }));
+      showToast(
+        mode === "live"
+          ? phone.trim()
+            ? t("bookedWithSms")
+            : t("bookedWithPush")
+          : t("bookedDemo"),
+      );
       closeBooking();
     } catch (e) {
       if (e instanceof Error && e.message === "BOOKING_CONFLICT") {
@@ -333,6 +329,20 @@ export function AmpNestBookingClient() {
       ) : (
         <>
           <p className="mb-4 text-sm text-slate-600">{buildingTitle}</p>
+
+          {building && mode === "live" && (
+            <WebPushBanner
+              buildingId={building.id}
+              userName={userName}
+              onEnabled={() => setPushReady(true)}
+            />
+          )}
+          {pushReady && (
+            <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-medium text-emerald-900">
+              ✓ {t("pushEnabled")}
+            </div>
+          )}
+
           <p className="mb-3 text-xs font-medium uppercase tracking-wide text-slate-400">
             {t("liveStatus")}
           </p>
@@ -415,13 +425,36 @@ export function AmpNestBookingClient() {
                 value={userName}
                 onChange={(e) => setUserName(e.target.value)}
               />
-              <label className="mt-3 block text-xs text-slate-500">{t("phone")}</label>
-              <input
-                type="tel"
-                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-slate-900"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-              />
+              {!showSms ? (
+                <button
+                  type="button"
+                  onClick={() => setShowSms(true)}
+                  className="mt-3 text-xs font-medium text-emerald-700 hover:underline"
+                >
+                  {t("showSms")}
+                </button>
+              ) : (
+                <>
+                  <label className="mt-3 block text-xs text-slate-500">{t("phone")}</label>
+                  <p className="mt-0.5 text-[11px] text-slate-400">{t("phoneOptional")}</p>
+                  <input
+                    type="tel"
+                    className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-slate-900"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowSms(false);
+                      setPhone("");
+                    }}
+                    className="mt-2 text-xs text-slate-500 hover:underline"
+                  >
+                    {t("hideSms")}
+                  </button>
+                </>
+              )}
               <label className="mt-3 block text-xs text-slate-500">{t("start")}</label>
               <input
                 type="datetime-local"

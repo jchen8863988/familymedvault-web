@@ -20,4 +20,9 @@ export function getAmpNestSmsWebhook(): string | undefined {
   return url?.trim() || undefined;
 }
 
+export function getAmpNestVapidPublicKey(): string | undefined {
+  const key = process.env.NEXT_PUBLIC_AMPNEST_VAPID_PUBLIC_KEY;
+  return key?.trim() || undefined;
+}
+
 export const AMPNEST_BOOK_PATH = "/ampnest/book";
