@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { loadBuildingFromFirebase, cancelFirebaseBooking } from "@/lib/ampnest/firebaseClient";
+import { loadBuildingFromFirebase, cancelFirebaseBooking, joinFirebaseWaitlist } from "@/lib/ampnest/firebaseClient";
 import { isAmpNestFirebaseConfigured } from "@/lib/ampnest/config";
 import {
   loadBuildingPayload,
@@ -14,12 +14,15 @@ import {
 import {
   isWebPushEnabled,
   watchSpotsForLocalNotifications,
+  getWebPushSubId,
+  enableWebPush,
 } from "@/lib/ampnest/webPush";
 import { WebPushBanner } from "@/components/ampnest/WebPushBanner";
 import {
   loadWaitlist,
   removeWaitlistEntry,
   saveWaitlistEntry,
+  hasWaitlistForPushSub,
   hasWaitlistForSpot,
   type StoredWaitlistEntry,
 } from "@/lib/ampnest/myWaitlist";
@@ -31,9 +34,7 @@ import {
   type StoredWebBooking,
 } from "@/lib/ampnest/myBookings";
 import {
-  getSavedUserEmail,
   getSavedUserName,
-  saveUserEmail,
   saveUserName,
 } from "@/lib/ampnest/webSession";
 
@@ -94,7 +95,6 @@ export function AmpNestBookingClient() {
 
   const [selectedSpot, setSelectedSpot] = useState<ChargerSpot | null>(null);
   const [userName, setUserName] = useState("");
-  const [email, setEmail] = useState("");
   const [pushReady, setPushReady] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -108,16 +108,11 @@ export function AmpNestBookingClient() {
 
   useEffect(() => {
     setUserName(getSavedUserName());
-    setEmail(getSavedUserEmail());
   }, []);
 
   useEffect(() => {
     if (userName.trim()) saveUserName(userName);
   }, [userName]);
-
-  useEffect(() => {
-    if (email.trim()) saveUserEmail(email);
-  }, [email]);
 
   const myBookings = useMemo(
     () => (inviteCode ? collectRecoverableWebBookings(inviteCode, spots, userName) : []),
@@ -231,10 +226,6 @@ export function AmpNestBookingClient() {
   };
 
   const openWaitlist = (spot: ChargerSpot) => {
-    if (spot.status === "free") {
-      showToast(t("webCantBookFree"));
-      return;
-    }
     if (spot.status === "booked") {
       showToast(t("webCantBookBooked"));
       return;
@@ -257,13 +248,29 @@ export function AmpNestBookingClient() {
       showToast(t("needName"));
       return;
     }
-    if (!email.trim()) {
-      showToast(t("emailRequired"));
+
+    let webPushSubId = getWebPushSubId();
+    if (!webPushSubId && building?.id) {
+      const push = await enableWebPush({ buildingId: building.id, userName: userName.trim() });
+      if (!push.ok || !push.subId) {
+        showToast(t("pushRequiredForWaitlist"));
+        return;
+      }
+      webPushSubId = push.subId;
+      setPushReady(true);
+    }
+    if (!webPushSubId) {
+      showToast(t("pushRequiredForWaitlist"));
       return;
     }
-    if (hasWaitlistForSpot(inviteCode, selectedSpot.id, email.trim())) {
+
+    if (hasWaitlistForSpot(inviteCode, selectedSpot.id, webPushSubId)) {
       showToast(t("waitlistSuccess"));
       closeBooking();
+      return;
+    }
+    if (hasWaitlistForPushSub(inviteCode, webPushSubId, selectedSpot.id)) {
+      showToast(t("waitlistOnePerDevice"));
       return;
     }
 
@@ -275,9 +282,18 @@ export function AmpNestBookingClient() {
         inviteCode,
         spotLabel: selectedSpot.label,
         userName: userName.trim(),
-        email: email.trim(),
+        webPushSubId,
         joinedAt: new Date().toISOString(),
       };
+      if (mode === "live" && building?.id) {
+        const firebaseId = await joinFirebaseWaitlist({
+          spotId: selectedSpot.id,
+          buildingId: building.id,
+          userName: userName.trim(),
+          webPushSubId,
+        });
+        if (firebaseId) entry.id = firebaseId;
+      }
       saveWaitlistEntry(entry);
       setMyWaitlist(loadWaitlist(inviteCode));
       showToast(t("waitlistSuccess"));
@@ -464,7 +480,7 @@ export function AmpNestBookingClient() {
                         {t("webTierBadge")}
                       </span>
                     </div>
-                    <div className="mt-0.5 text-xs text-slate-600">{entry.email}</div>
+                    <div className="mt-0.5 text-xs text-slate-600">{t("waitlistPushEnabled")}</div>
                     <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
                       {t("myWaitlistHint")}
                     </p>
@@ -493,7 +509,8 @@ export function AmpNestBookingClient() {
           ) : (
             <ul className="space-y-2">
               {spots.map((spot) => {
-                const canWaitlist = spot.status === "occupied";
+                const canWaitlist = spot.status === "free" || spot.status === "occupied";
+                const alreadyWaiting = myWaitlist.some((e) => e.spotId === spot.id);
                 const sub =
                   spot.status === "occupied"
                     ? t("occupiedSub", {
@@ -502,39 +519,38 @@ export function AmpNestBookingClient() {
                       })
                     : spot.status === "booked" && spot.nextBooking
                       ? `${spot.nextBooking.userName} · ${formatTime(spot.nextBooking.startTime)} – ${formatTime(spot.nextBooking.endTime)}`
-                      : "Level 2 · 7.2 kW · App 预约";
+                      : t("freeSub");
 
                 return (
-                  <li key={spot.id}>
-                    <button
-                      type="button"
-                      onClick={() => (canWaitlist ? openWaitlist(spot) : openWaitlist(spot))}
-                      className={`w-full rounded-2xl border p-4 text-left transition ${
-                        canWaitlist
-                          ? "border-slate-200 bg-white hover:border-amber-300 hover:shadow-sm"
-                          : "cursor-default border-slate-100 bg-slate-50"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-semibold ${
-                            spot.status === "free"
-                              ? "bg-emerald-100 text-emerald-800"
-                              : spot.status === "occupied"
-                                ? "bg-red-100 text-red-800"
-                                : "bg-amber-100 text-amber-900"
-                          }`}
-                        >
-                          {spot.label}
+                  <li
+                    key={spot.id}
+                    className={`rounded-2xl border p-4 ${
+                      spot.status === "booked"
+                        ? "border-slate-100 bg-slate-50"
+                        : "border-slate-200 bg-white"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-semibold ${
+                          spot.status === "free"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : spot.status === "occupied"
+                              ? "bg-red-100 text-red-800"
+                              : "bg-amber-100 text-amber-900"
+                        }`}
+                      >
+                        {spot.label}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium text-slate-900">
+                          {t("spotLabel", { label: spot.label })}
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="text-sm font-medium text-slate-900">
-                            {t("spotLabel", { label: spot.label })}
-                          </div>
-                          <div className="truncate text-xs text-slate-500">{sub}</div>
-                        </div>
+                        <div className="truncate text-xs text-slate-500">{sub}</div>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1.5">
                         <span
-                          className={`shrink-0 rounded-lg px-2 py-0.5 text-xs font-medium ${
+                          className={`rounded-lg px-2 py-0.5 text-xs font-medium ${
                             spot.status === "free"
                               ? "bg-emerald-50 text-emerald-800"
                               : spot.status === "occupied"
@@ -544,11 +560,21 @@ export function AmpNestBookingClient() {
                         >
                           {statusLabel(spot.status)}
                         </span>
+                        {canWaitlist && (
+                          <button
+                            type="button"
+                            onClick={() => openWaitlist(spot)}
+                            className={`rounded-lg px-2.5 py-1 text-xs font-medium transition ${
+                              alreadyWaiting
+                                ? "bg-slate-100 text-slate-600"
+                                : "bg-amber-100 text-amber-900 hover:bg-amber-200"
+                            }`}
+                          >
+                            {alreadyWaiting ? t("waitlistJoined") : t("waitlistBtn")}
+                          </button>
+                        )}
                       </div>
-                      {canWaitlist && (
-                        <p className="mt-2 text-xs font-medium text-amber-800">{t("joinWaitlist")} →</p>
-                      )}
-                    </button>
+                    </div>
                   </li>
                 );
               })}
@@ -560,20 +586,18 @@ export function AmpNestBookingClient() {
               <h3 className="text-base font-semibold text-slate-900">
                 {t("waitlistTitle")} · {selectedSpot.label}
               </h3>
-              <p className="mt-2 text-xs leading-relaxed text-slate-500">{t("waitlistDesc")}</p>
+              <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                {selectedSpot.status === "free" ? t("waitlistFreeDesc") : t("waitlistDesc")}
+              </p>
               <label className="mt-3 block text-xs text-slate-500">{t("name")}</label>
               <input
                 className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-slate-900"
                 value={userName}
                 onChange={(e) => setUserName(e.target.value)}
               />
-              <label className="mt-3 block text-xs text-slate-500">{t("email")}</label>
-              <input
-                type="email"
-                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-slate-900"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
+              {!pushReady && building && (
+                <p className="mt-3 text-xs leading-relaxed text-amber-800">{t("pushRequiredForWaitlist")}</p>
+              )}
               <button
                 type="button"
                 disabled={submitting}

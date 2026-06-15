@@ -94,6 +94,39 @@ export async function createFirebaseBooking(
   return full;
 }
 
+/** Join web waitlist — notified only via browser Web Push (webPushSubId). */
+export async function joinFirebaseWaitlist(input: {
+  spotId: string;
+  buildingId: string;
+  userName: string;
+  webPushSubId: string;
+}): Promise<string | null> {
+  const database = getDb();
+  if (!database) return null;
+
+  const userId = `web-${input.webPushSubId}`;
+  const entryRef = push(ref(database, `queues/${input.spotId}`));
+  const entry = {
+    id: entryRef.key,
+    spotId: input.spotId,
+    buildingId: input.buildingId,
+    userId,
+    userName: input.userName.trim(),
+    userTier: "web",
+    webPushSubId: input.webPushSubId,
+    joinedAt: new Date().toISOString(),
+    status: "waiting",
+  };
+  await set(entryRef, entry);
+  return entryRef.key;
+}
+
+export async function leaveFirebaseWaitlist(spotId: string, entryId: string): Promise<void> {
+  const database = getDb();
+  if (!database) return;
+  await remove(ref(database, `queues/${spotId}/${entryId}`));
+}
+
 /** Cancel a booking created on web (same device verifies via stored userId). */
 export async function cancelFirebaseBooking(
   bookingId: string,

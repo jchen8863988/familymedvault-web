@@ -39,7 +39,11 @@ export function getPushPermissionState(): PushPermissionState {
 export async function enableWebPush(input: {
   buildingId: string;
   userName?: string;
-}): Promise<{ ok: boolean; reason?: "denied" | "unsupported" | "no_vapid" | "error" }> {
+}): Promise<{
+  ok: boolean;
+  subId?: string;
+  reason?: "denied" | "unsupported" | "no_vapid" | "error";
+}> {
   if (typeof window === "undefined") return { ok: false, reason: "unsupported" };
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
     return { ok: false, reason: "unsupported" };
@@ -50,9 +54,7 @@ export async function enableWebPush(input: {
 
   const vapidKey = getVapidPublicKey();
   if (!vapidKey) {
-    // No server push — still allow on-page notifications via Firebase listener
-    localStorage.setItem(SUB_KEY, `local:${input.buildingId}`);
-    return { ok: true };
+    return { ok: false, reason: "no_vapid" };
   }
 
   try {
@@ -77,11 +79,20 @@ export async function enableWebPush(input: {
         createdAt: new Date().toISOString(),
       });
       localStorage.setItem(SUB_KEY, subId);
+      return { ok: true, subId };
     }
-    return { ok: true };
+    return { ok: false, reason: "error" };
   } catch {
     return { ok: false, reason: "error" };
   }
+}
+
+/** Current browser push subscription id for this device (required for web waitlist). */
+export function getWebPushSubId(): string | null {
+  if (typeof window === "undefined") return null;
+  const id = localStorage.getItem(SUB_KEY);
+  if (!id || id.startsWith("local:")) return null;
+  return id;
 }
 
 /** Show browser notifications when spots turn free (works without VAPID while page is open). */
@@ -122,6 +133,5 @@ export function watchSpotsForLocalNotifications(
 
 export function isWebPushEnabled(buildingId: string): boolean {
   if (typeof window === "undefined") return false;
-  const id = localStorage.getItem(SUB_KEY);
-  return id === `local:${buildingId}` || Boolean(id);
+  return Boolean(getWebPushSubId());
 }
