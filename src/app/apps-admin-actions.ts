@@ -16,6 +16,11 @@ export type AppsAdminActionResult =
   | { ok: true }
   | { ok: false; error: string };
 
+function isDuplicateSlugError(message: string, code?: string): boolean {
+  if (code === "23505") return true;
+  return /duplicate key|unique constraint|store_apps.*slug/i.test(message);
+}
+
 function verifyAppsPassword(input: string): boolean {
   const secret = process.env.APPS_ADMIN_SECRET;
   if (!secret || !input) return false;
@@ -112,12 +117,18 @@ export async function upsertStoreApp(
     const { error } = await sb.from("store_apps").update(payload).eq("id", id);
     if (error) {
       console.error("[apps admin] update", error.message);
+      if (isDuplicateSlugError(error.message, error.code)) {
+        return { ok: false, error: t("duplicateSlug") };
+      }
       return { ok: false, error: t("saveFailed") };
     }
   } else {
     const { error } = await sb.from("store_apps").insert(payload);
     if (error) {
       console.error("[apps admin] insert", error.message);
+      if (isDuplicateSlugError(error.message, error.code)) {
+        return { ok: false, error: t("duplicateSlug") };
+      }
       return { ok: false, error: t("saveFailed") };
     }
   }

@@ -365,6 +365,7 @@
       "invalidSlug": "slug 无效，请使用 a–z、0–9、连字符，长度 1–80。",
       "requiredFields": "请填写中英文名称，并至少勾选一个平台且填写对应链接。",
       "urlPlatform": "已勾选的平台必须填写对应的商店或网页链接。",
+      "duplicateSlug": "该 slug 已存在，请在下方「已保存的应用」列表中编辑，不要重复新建。",
       "saveFailed": "保存失败，请检查 Supabase 与表结构后重试。",
       "deleteFailed": "删除失败。",
       "invalidJson": "JSON 格式无效。",

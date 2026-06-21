@@ -365,6 +365,7 @@
       "invalidSlug": "Invalid slug. Use 1–80 characters: a–z, 0–9, hyphens.",
       "requiredFields": "Name (EN/ZH) and at least one platform with a valid URL are required.",
       "urlPlatform": "Each selected platform needs its store or web URL.",
+      "duplicateSlug": "This slug already exists. Edit the existing row in the list below instead of creating a new one.",
       "saveFailed": "Save failed. Check Supabase and try again.",
       "deleteFailed": "Delete failed.",
       "invalidJson": "Invalid JSON.",
