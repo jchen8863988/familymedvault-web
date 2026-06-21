@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { loadBuildingFromFirebase, cancelFirebaseBooking, joinFirebaseWaitlist } from "@/lib/ampnest/firebaseClient";
+import { loadBuildingFromFirebase, cancelFirebaseBooking, joinFirebaseWaitlist, leaveFirebaseWaitlist } from "@/lib/ampnest/firebaseClient";
 import { isAmpNestFirebaseConfigured } from "@/lib/ampnest/config";
 import {
   loadBuildingPayload,
@@ -303,13 +303,21 @@ export function AmpNestBookingClient() {
     }
   };
 
-  const handleCancelWaitlist = (entry: StoredWaitlistEntry) => {
+  const handleCancelWaitlist = async (entry: StoredWaitlistEntry) => {
     if (!window.confirm(t("cancelWaitlistConfirm"))) return;
     setCancellingId(entry.id);
-    removeWaitlistEntry(entry.id);
-    setMyWaitlist(loadWaitlist(inviteCode));
-    showToast(t("waitlistCancelled"));
-    setCancellingId(null);
+    try {
+      if (mode === "live" && isAmpNestFirebaseConfigured()) {
+        await leaveFirebaseWaitlist(entry.spotId, entry.id);
+      }
+      removeWaitlistEntry(entry.id);
+      setMyWaitlist(loadWaitlist(inviteCode));
+      showToast(t("waitlistCancelled"));
+    } catch {
+      showToast(t("cancelFailed"));
+    } finally {
+      setCancellingId(null);
+    }
   };
 
   const handleCancelBooking = async (booking: StoredWebBooking) => {
