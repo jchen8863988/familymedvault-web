@@ -38,6 +38,7 @@ function SiteHeaderMain() {
     { href: "/apps", label: t("apps") },
     { href: "/community", label: t("community") },
     { href: "/ampnest/book", label: t("siteApp") },
+    { href: "/telog/dashboard", label: t("telogDashboard") },
   ];
 
   return (

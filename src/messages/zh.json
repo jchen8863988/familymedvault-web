@@ -5,6 +5,7 @@
     "community": "社区",
     "download": "下载",
     "siteApp": "AmpNest-Charger booking",
+    "telogDashboard": "特档案 Telog 仪表盘",
     "openMenu": "打开菜单",
     "closeMenu": "关闭菜单",
     "menuTitle": "菜单"
@@ -90,6 +91,13 @@
     "cancelNotYours": "只能取消本设备上的预约",
     "cancelling": "取消中…",
     "smsBody": "AmpNest：{name}，充电位 {spot} 已预约 {time}。开始前 10 分钟会再发短信提醒。"
+  },
+  "telogDashboardPage": {
+    "metaTitle": "特档案 Telog 仪表盘",
+    "metaDesc": "特斯拉行车数据分析仪表盘，即将上线。",
+    "eyebrow": "特档案 Telog",
+    "title": "特档案 Telog 仪表盘",
+    "maintenance": "系统维护中"
   },
   "localeSwitcher": {
     "label": "语言",

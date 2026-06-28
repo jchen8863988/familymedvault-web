@@ -5,6 +5,7 @@
     "community": "Community",
     "download": "Download",
     "siteApp": "AmpNest-Charger booking",
+    "telogDashboard": "Telog Archive · Dashboards",
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
     "menuTitle": "Menu"
@@ -90,6 +91,13 @@
     "cancelNotYours": "You can only cancel bookings made on this device",
     "cancelling": "Cancelling…",
     "smsBody": "AmpNest: {name}, spot {spot} booked for {time}. Reminder 10 min before start."
+  },
+  "telogDashboardPage": {
+    "metaTitle": "Telog Archive · Dashboards",
+    "metaDesc": "Tesla driving analytics dashboards — coming soon.",
+    "eyebrow": "Telog Archive",
+    "title": "Telog Archive · Dashboards",
+    "maintenance": "System under maintenance"
   },
   "localeSwitcher": {
     "label": "Language",

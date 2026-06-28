@@ -1,7 +1,15 @@
 import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/lib/seo";
 
-const paths = ["", "/apps", "/community", "/privacy", "/terms", "/ampnest/book"];
+const paths = [
+  "",
+  "/apps",
+  "/community",
+  "/privacy",
+  "/terms",
+  "/ampnest/book",
+  "/telog/dashboard",
+];
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const out: MetadataRoute.Sitemap = [];
