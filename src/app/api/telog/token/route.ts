@@ -30,6 +30,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   }
 
+  if (body.client_secret || body.clientSecret) {
+    return NextResponse.json({ error: "client_secret_forbidden_on_client" }, { status: 400 });
+  }
+
   const params = new URLSearchParams({
     client_id: clientId,
     client_secret: clientSecret,
