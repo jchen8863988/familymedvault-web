@@ -1,83 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { randomUUID } from "crypto";
 
 import {
-  destroyRefreshTokenVault,
-  hashRefreshToken,
-  sealRefreshToken,
-  type EncryptedRefreshTokenVault,
-} from "@/lib/telog/tokenVault";
+  appendCloudCollectEvents,
+  CloudCollectStorageError,
+  getCloudCollectTenantStatus,
+  pullCloudCollectEvents,
+  registerCloudCollectTenant,
+  revokeCloudCollectTenant,
+  type RegisterTenantInput,
+} from "@/lib/telog/cloudCollectStore";
 
 /**
- * TeLog CN cloud-collect — multi-tenant 7×24 collector registry (stub).
- * Production: persist to CN-region DB + TeslaMate Elixir / Fleet Telemetry workers.
+ * TeLog CN cloud-collect — multi-tenant 7×24 collector registry.
+ * Persistence: Supabase (migration_telog_cloud_collect.sql).
  *
- * Actions (POST body.action):
- *   register — create tenant, store encrypted refresh token ref
- *   events   — append telemetry batch for tenant
- *   revoke   — delete tenant + all events
- *
- * GET ?tenantId= — collector status
+ * POST body.action: register | events | revoke
+ * GET ?tenantId= — status or ?pull=1 for sync batch
+ * GET /collector — optional cron tick (authorize required)
  */
-
-type VehicleRef = { carId: string; vin: string; fleetVehicleId: string };
-
-type TenantRecord = {
-  tenantId: string;
-  storageRegion: "cn";
-  transport: "fleet_api" | "fleet_telemetry";
-  retentionDays: number;
-  consentAcceptedAt: string;
-  disclosureVersion: number;
-  disclosureAcceptedAt: string;
-  vehicles: VehicleRef[];
-  refreshTokenHash: string;
-  refreshTokenVault?: EncryptedRefreshTokenVault;
-  collectorStatus: "active" | "paused" | "revoked";
-  registeredAt: string;
-  lastSeenAt: string | null;
-  events: unknown[];
-  /** syncKey → index in events — idempotent (VIN, eventType, startTime). */
-  eventIndex: Map<string, number>;
-};
-
-const tenants = new Map<string, TenantRecord>();
-
-function eventSyncKey(event: unknown): string | null {
-  if (!event || typeof event !== "object") return null;
-  const rec = event as Record<string, unknown>;
-  if (typeof rec.syncKey === "string") return rec.syncKey;
-  const payload = rec.payload as Record<string, unknown> | undefined;
-  if (payload && typeof payload.syncKey === "string") return payload.syncKey;
-  return null;
-}
-
-function mergeCloudEvent(existing: unknown, incoming: unknown): unknown {
-  if (!existing || typeof existing !== "object") return incoming;
-  if (!incoming || typeof incoming !== "object") return existing;
-  const a = existing as Record<string, unknown>;
-  const b = incoming as Record<string, unknown>;
-  const mergedPayload = {
-    ...(typeof a.payload === "object" && a.payload ? a.payload : {}),
-    ...(typeof b.payload === "object" && b.payload ? b.payload : {}),
-  };
-  return { ...a, ...b, payload: mergedPayload };
-}
-
-function upsertTenantEvent(tenant: TenantRecord, event: unknown): void {
-  const key = eventSyncKey(event);
-  if (!key) {
-    tenant.events.push(event);
-    return;
-  }
-  const idx = tenant.eventIndex.get(key);
-  if (idx == null) {
-    tenant.eventIndex.set(key, tenant.events.length);
-    tenant.events.push(event);
-    return;
-  }
-  tenant.events[idx] = mergeCloudEvent(tenant.events[idx], event);
-}
 
 function authorize(req: NextRequest): boolean {
   const proxyKey = process.env.TESLA_CN_AUTH_PROXY_KEY;
@@ -87,8 +27,14 @@ function authorize(req: NextRequest): boolean {
   return bearer === proxyKey;
 }
 
-function hashToken(token: string): string {
-  return hashRefreshToken(token);
+function storageErrorResponse(err: CloudCollectStorageError): NextResponse {
+  if (err.code === "storage_not_configured") {
+    return NextResponse.json({ error: "backend_not_configured" }, { status: 503 });
+  }
+  if (err.code === "tenant_not_found") {
+    return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
+  }
+  return NextResponse.json({ error: "db_error", detail: err.message }, { status: 500 });
 }
 
 export async function GET(req: NextRequest) {
@@ -101,31 +47,24 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "missing_tenant_id" }, { status: 400 });
   }
 
-  const tenant = tenants.get(tenantId);
-  if (!tenant || tenant.collectorStatus === "revoked") {
-    return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
-  }
+  try {
+    const pull = req.nextUrl.searchParams.get("pull");
+    if (pull === "1") {
+      const offset = Math.max(0, Number(req.nextUrl.searchParams.get("offset") ?? 0));
+      const limit = Math.min(Math.max(1, Number(req.nextUrl.searchParams.get("limit") ?? 100)), 500);
+      const batch = await pullCloudCollectEvents(tenantId, offset, limit);
+      return NextResponse.json(batch);
+    }
 
-  const pull = req.nextUrl.searchParams.get("pull");
-  if (pull === "1") {
-    const offset = Math.max(0, Number(req.nextUrl.searchParams.get("offset") ?? 0));
-    const limit = Math.min(Math.max(1, Number(req.nextUrl.searchParams.get("limit") ?? 100)), 500);
-    const slice = tenant.events.slice(offset, offset + limit);
-    return NextResponse.json({
-      events: slice,
-      nextOffset: offset + slice.length,
-      total: tenant.events.length,
-    });
+    const status = await getCloudCollectTenantStatus(tenantId);
+    if (!status) {
+      return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
+    }
+    return NextResponse.json(status);
+  } catch (e) {
+    if (e instanceof CloudCollectStorageError) return storageErrorResponse(e);
+    throw e;
   }
-
-  return NextResponse.json({
-    tenantId: tenant.tenantId,
-    collectorStatus: tenant.collectorStatus,
-    eventCount: tenant.events.length,
-    lastSeenAt: tenant.lastSeenAt,
-    transport: tenant.transport,
-    storageRegion: tenant.storageRegion,
-  });
 }
 
 export async function POST(req: NextRequest) {
@@ -142,90 +81,50 @@ export async function POST(req: NextRequest) {
 
   const action = String(body.action ?? "");
 
-  if (action === "register") {
-    const refreshToken = String(body.refreshToken ?? "");
-    const vehicles = body.vehicles as VehicleRef[] | undefined;
-    if (!refreshToken || !vehicles?.length) {
-      return NextResponse.json({ error: "missing_register_fields" }, { status: 400 });
-    }
+  try {
+    if (action === "register") {
+      const refreshToken = String(body.refreshToken ?? "");
+      const vehicles = body.vehicles as RegisterTenantInput["vehicles"] | undefined;
+      if (!refreshToken || !vehicles?.length) {
+        return NextResponse.json({ error: "missing_register_fields" }, { status: 400 });
+      }
 
-    const tenantId = randomUUID();
-    const registeredAt = new Date().toISOString();
-    const vault = sealRefreshToken(tenantId, refreshToken);
-    const record: TenantRecord = {
-      tenantId,
-      storageRegion: "cn",
-      transport: (body.transport as TenantRecord["transport"]) ?? "fleet_api",
-      retentionDays: Number(body.retentionDays ?? 365),
-      consentAcceptedAt: String(body.consentAcceptedAt ?? registeredAt),
-      disclosureVersion: Number(body.disclosureVersion ?? 1),
-      disclosureAcceptedAt: String(body.disclosureAcceptedAt ?? registeredAt),
-      vehicles,
-      refreshTokenHash: hashToken(refreshToken),
-      refreshTokenVault: vault ?? undefined,
-      collectorStatus: "active",
-      registeredAt,
-      lastSeenAt: registeredAt,
-      events: [],
-      eventIndex: new Map(),
-    };
-    tenants.set(tenantId, record);
-
-    return NextResponse.json({
-      tenantId,
-      transport: record.transport,
-      storageRegion: record.storageRegion,
-      collectorStatus: record.collectorStatus,
-      registeredAt,
-      tokenVaultStored: Boolean(vault),
-    });
-  }
-
-  if (action === "events") {
-    const tenantId = String(body.tenantId ?? "");
-    const events = body.events as unknown[] | undefined;
-    const tenant = tenants.get(tenantId);
-    if (!tenant || tenant.collectorStatus === "revoked") {
-      return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
-    }
-    if (!Array.isArray(events) || events.length === 0) {
-      return NextResponse.json({ error: "empty_events" }, { status: 400 });
-    }
-
-    for (const event of events) {
-      upsertTenantEvent(tenant, event);
-    }
-    tenant.lastSeenAt = new Date().toISOString();
-    const maxEvents = 10_000;
-    if (tenant.events.length > maxEvents) {
-      const drop = tenant.events.length - maxEvents;
-      tenant.events = tenant.events.slice(drop);
-      tenant.eventIndex.clear();
-      tenant.events.forEach((e, i) => {
-        const key = eventSyncKey(e);
-        if (key) tenant.eventIndex.set(key, i);
+      const result = await registerCloudCollectTenant({
+        retentionDays: Number(body.retentionDays ?? 365),
+        storageRegion: "cn",
+        transport: (body.transport as RegisterTenantInput["transport"]) ?? "fleet_api",
+        consentAcceptedAt: String(body.consentAcceptedAt ?? new Date().toISOString()),
+        disclosureVersion: Number(body.disclosureVersion ?? 1),
+        disclosureAcceptedAt: String(body.disclosureAcceptedAt ?? new Date().toISOString()),
+        vehicles,
+        refreshToken,
       });
+
+      return NextResponse.json(result);
     }
 
-    return NextResponse.json({
-      accepted: events.length,
-      collectorStatus: tenant.collectorStatus,
-    });
-  }
-
-  if (action === "revoke") {
-    const tenantId = String(body.tenantId ?? "");
-    const tenant = tenants.get(tenantId);
-    if (tenant) {
-      destroyRefreshTokenVault(tenant.refreshTokenVault);
-      tenant.collectorStatus = "revoked";
-      tenant.events = [];
-      tenant.refreshTokenVault = undefined;
-      tenant.refreshTokenHash = "";
-      tenants.delete(tenantId);
+    if (action === "events") {
+      const tenantId = String(body.tenantId ?? "");
+      const events = body.events as unknown[] | undefined;
+      if (!tenantId) {
+        return NextResponse.json({ error: "missing_tenant_id" }, { status: 400 });
+      }
+      const result = await appendCloudCollectEvents(tenantId, events ?? []);
+      return NextResponse.json(result);
     }
-    return NextResponse.json({ ok: true, tokenDestroyed: true });
-  }
 
-  return NextResponse.json({ error: "unknown_action" }, { status: 400 });
+    if (action === "revoke") {
+      const tenantId = String(body.tenantId ?? "");
+      if (!tenantId) {
+        return NextResponse.json({ error: "missing_tenant_id" }, { status: 400 });
+      }
+      await revokeCloudCollectTenant(tenantId);
+      return NextResponse.json({ ok: true, tokenDestroyed: true });
+    }
+
+    return NextResponse.json({ error: "unknown_action" }, { status: 400 });
+  } catch (e) {
+    if (e instanceof CloudCollectStorageError) return storageErrorResponse(e);
+    throw e;
+  }
 }
