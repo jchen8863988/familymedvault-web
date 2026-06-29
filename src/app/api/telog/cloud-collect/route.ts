@@ -1,0 +1,154 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createHash, randomUUID } from "crypto";
+
+/**
+ * TeLog CN cloud-collect — multi-tenant 7×24 collector registry (stub).
+ * Production: persist to CN-region DB + TeslaMate Elixir / Fleet Telemetry workers.
+ *
+ * Actions (POST body.action):
+ *   register — create tenant, store encrypted refresh token ref
+ *   events   — append telemetry batch for tenant
+ *   revoke   — delete tenant + all events
+ *
+ * GET ?tenantId= — collector status
+ */
+
+type VehicleRef = { carId: string; vin: string; fleetVehicleId: string };
+
+type TenantRecord = {
+  tenantId: string;
+  storageRegion: "cn";
+  transport: "fleet_api" | "fleet_telemetry";
+  retentionDays: number;
+  consentAcceptedAt: string;
+  vehicles: VehicleRef[];
+  refreshTokenHash: string;
+  collectorStatus: "active" | "paused" | "revoked";
+  registeredAt: string;
+  lastSeenAt: string | null;
+  events: unknown[];
+};
+
+const tenants = new Map<string, TenantRecord>();
+
+function authorize(req: NextRequest): boolean {
+  const proxyKey = process.env.TESLA_CN_AUTH_PROXY_KEY;
+  const authHeader = req.headers.get("authorization") ?? "";
+  const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+  if (!proxyKey) return true;
+  return bearer === proxyKey;
+}
+
+function hashToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+export async function GET(req: NextRequest) {
+  if (!authorize(req)) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  const tenantId = req.nextUrl.searchParams.get("tenantId");
+  if (!tenantId) {
+    return NextResponse.json({ error: "missing_tenant_id" }, { status: 400 });
+  }
+
+  const tenant = tenants.get(tenantId);
+  if (!tenant || tenant.collectorStatus === "revoked") {
+    return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
+  }
+
+  return NextResponse.json({
+    tenantId: tenant.tenantId,
+    collectorStatus: tenant.collectorStatus,
+    eventCount: tenant.events.length,
+    lastSeenAt: tenant.lastSeenAt,
+    transport: tenant.transport,
+    storageRegion: tenant.storageRegion,
+  });
+}
+
+export async function POST(req: NextRequest) {
+  if (!authorize(req)) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  let body: Record<string, unknown>;
+  try {
+    body = (await req.json()) as Record<string, unknown>;
+  } catch {
+    return NextResponse.json({ error: "invalid_json" }, { status: 400 });
+  }
+
+  const action = String(body.action ?? "");
+
+  if (action === "register") {
+    const refreshToken = String(body.refreshToken ?? "");
+    const vehicles = body.vehicles as VehicleRef[] | undefined;
+    if (!refreshToken || !vehicles?.length) {
+      return NextResponse.json({ error: "missing_register_fields" }, { status: 400 });
+    }
+
+    const tenantId = randomUUID();
+    const registeredAt = new Date().toISOString();
+    const record: TenantRecord = {
+      tenantId,
+      storageRegion: "cn",
+      transport: (body.transport as TenantRecord["transport"]) ?? "fleet_api",
+      retentionDays: Number(body.retentionDays ?? 365),
+      consentAcceptedAt: String(body.consentAcceptedAt ?? registeredAt),
+      vehicles,
+      refreshTokenHash: hashToken(refreshToken),
+      collectorStatus: "active",
+      registeredAt,
+      lastSeenAt: registeredAt,
+      events: [],
+    };
+    tenants.set(tenantId, record);
+
+    return NextResponse.json({
+      tenantId,
+      transport: record.transport,
+      storageRegion: record.storageRegion,
+      collectorStatus: record.collectorStatus,
+      registeredAt,
+    });
+  }
+
+  if (action === "events") {
+    const tenantId = String(body.tenantId ?? "");
+    const events = body.events as unknown[] | undefined;
+    const tenant = tenants.get(tenantId);
+    if (!tenant || tenant.collectorStatus === "revoked") {
+      return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
+    }
+    if (!Array.isArray(events) || events.length === 0) {
+      return NextResponse.json({ error: "empty_events" }, { status: 400 });
+    }
+
+    tenant.events.push(...events);
+    tenant.lastSeenAt = new Date().toISOString();
+    const maxEvents = 10_000;
+    if (tenant.events.length > maxEvents) {
+      tenant.events = tenant.events.slice(tenant.events.length - maxEvents);
+    }
+
+    return NextResponse.json({
+      accepted: events.length,
+      collectorStatus: tenant.collectorStatus,
+    });
+  }
+
+  if (action === "revoke") {
+    const tenantId = String(body.tenantId ?? "");
+    const tenant = tenants.get(tenantId);
+    if (tenant) {
+      tenant.collectorStatus = "revoked";
+      tenant.events = [];
+      tenants.delete(tenantId);
+    }
+    return NextResponse.json({ ok: true });
+  }
+
+  return NextResponse.json({ error: "unknown_action" }, { status: 400 });
+}
