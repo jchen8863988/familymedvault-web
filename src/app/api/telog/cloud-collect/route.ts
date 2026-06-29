@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHash, randomUUID } from "crypto";
+import { randomUUID } from "crypto";
+
+import {
+  destroyRefreshTokenVault,
+  hashRefreshToken,
+  sealRefreshToken,
+  type EncryptedRefreshTokenVault,
+} from "@/lib/telog/tokenVault";
 
 /**
  * TeLog CN cloud-collect — multi-tenant 7×24 collector registry (stub).
@@ -25,6 +32,7 @@ type TenantRecord = {
   disclosureAcceptedAt: string;
   vehicles: VehicleRef[];
   refreshTokenHash: string;
+  refreshTokenVault?: EncryptedRefreshTokenVault;
   collectorStatus: "active" | "paused" | "revoked";
   registeredAt: string;
   lastSeenAt: string | null;
@@ -80,7 +88,7 @@ function authorize(req: NextRequest): boolean {
 }
 
 function hashToken(token: string): string {
-  return createHash("sha256").update(token).digest("hex");
+  return hashRefreshToken(token);
 }
 
 export async function GET(req: NextRequest) {
@@ -143,6 +151,7 @@ export async function POST(req: NextRequest) {
 
     const tenantId = randomUUID();
     const registeredAt = new Date().toISOString();
+    const vault = sealRefreshToken(tenantId, refreshToken);
     const record: TenantRecord = {
       tenantId,
       storageRegion: "cn",
@@ -153,6 +162,7 @@ export async function POST(req: NextRequest) {
       disclosureAcceptedAt: String(body.disclosureAcceptedAt ?? registeredAt),
       vehicles,
       refreshTokenHash: hashToken(refreshToken),
+      refreshTokenVault: vault ?? undefined,
       collectorStatus: "active",
       registeredAt,
       lastSeenAt: registeredAt,
@@ -167,6 +177,7 @@ export async function POST(req: NextRequest) {
       storageRegion: record.storageRegion,
       collectorStatus: record.collectorStatus,
       registeredAt,
+      tokenVaultStored: Boolean(vault),
     });
   }
 
@@ -206,11 +217,14 @@ export async function POST(req: NextRequest) {
     const tenantId = String(body.tenantId ?? "");
     const tenant = tenants.get(tenantId);
     if (tenant) {
+      destroyRefreshTokenVault(tenant.refreshTokenVault);
       tenant.collectorStatus = "revoked";
       tenant.events = [];
+      tenant.refreshTokenVault = undefined;
+      tenant.refreshTokenHash = "";
       tenants.delete(tenantId);
     }
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, tokenDestroyed: true });
   }
 
   return NextResponse.json({ error: "unknown_action" }, { status: 400 });
