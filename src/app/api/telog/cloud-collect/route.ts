@@ -29,9 +29,47 @@ type TenantRecord = {
   registeredAt: string;
   lastSeenAt: string | null;
   events: unknown[];
+  /** syncKey → index in events — idempotent (VIN, eventType, startTime). */
+  eventIndex: Map<string, number>;
 };
 
 const tenants = new Map<string, TenantRecord>();
+
+function eventSyncKey(event: unknown): string | null {
+  if (!event || typeof event !== "object") return null;
+  const rec = event as Record<string, unknown>;
+  if (typeof rec.syncKey === "string") return rec.syncKey;
+  const payload = rec.payload as Record<string, unknown> | undefined;
+  if (payload && typeof payload.syncKey === "string") return payload.syncKey;
+  return null;
+}
+
+function mergeCloudEvent(existing: unknown, incoming: unknown): unknown {
+  if (!existing || typeof existing !== "object") return incoming;
+  if (!incoming || typeof incoming !== "object") return existing;
+  const a = existing as Record<string, unknown>;
+  const b = incoming as Record<string, unknown>;
+  const mergedPayload = {
+    ...(typeof a.payload === "object" && a.payload ? a.payload : {}),
+    ...(typeof b.payload === "object" && b.payload ? b.payload : {}),
+  };
+  return { ...a, ...b, payload: mergedPayload };
+}
+
+function upsertTenantEvent(tenant: TenantRecord, event: unknown): void {
+  const key = eventSyncKey(event);
+  if (!key) {
+    tenant.events.push(event);
+    return;
+  }
+  const idx = tenant.eventIndex.get(key);
+  if (idx == null) {
+    tenant.eventIndex.set(key, tenant.events.length);
+    tenant.events.push(event);
+    return;
+  }
+  tenant.events[idx] = mergeCloudEvent(tenant.events[idx], event);
+}
 
 function authorize(req: NextRequest): boolean {
   const proxyKey = process.env.TESLA_CN_AUTH_PROXY_KEY;
@@ -58,6 +96,18 @@ export async function GET(req: NextRequest) {
   const tenant = tenants.get(tenantId);
   if (!tenant || tenant.collectorStatus === "revoked") {
     return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
+  }
+
+  const pull = req.nextUrl.searchParams.get("pull");
+  if (pull === "1") {
+    const offset = Math.max(0, Number(req.nextUrl.searchParams.get("offset") ?? 0));
+    const limit = Math.min(Math.max(1, Number(req.nextUrl.searchParams.get("limit") ?? 100)), 500);
+    const slice = tenant.events.slice(offset, offset + limit);
+    return NextResponse.json({
+      events: slice,
+      nextOffset: offset + slice.length,
+      total: tenant.events.length,
+    });
   }
 
   return NextResponse.json({
@@ -107,6 +157,7 @@ export async function POST(req: NextRequest) {
       registeredAt,
       lastSeenAt: registeredAt,
       events: [],
+      eventIndex: new Map(),
     };
     tenants.set(tenantId, record);
 
@@ -130,11 +181,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "empty_events" }, { status: 400 });
     }
 
-    tenant.events.push(...events);
+    for (const event of events) {
+      upsertTenantEvent(tenant, event);
+    }
     tenant.lastSeenAt = new Date().toISOString();
     const maxEvents = 10_000;
     if (tenant.events.length > maxEvents) {
-      tenant.events = tenant.events.slice(tenant.events.length - maxEvents);
+      const drop = tenant.events.length - maxEvents;
+      tenant.events = tenant.events.slice(drop);
+      tenant.eventIndex.clear();
+      tenant.events.forEach((e, i) => {
+        const key = eventSyncKey(e);
+        if (key) tenant.eventIndex.set(key, i);
+      });
     }
 
     return NextResponse.json({
