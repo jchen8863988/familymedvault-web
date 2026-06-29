@@ -21,6 +21,8 @@ type TenantRecord = {
   transport: "fleet_api" | "fleet_telemetry";
   retentionDays: number;
   consentAcceptedAt: string;
+  disclosureVersion: number;
+  disclosureAcceptedAt: string;
   vehicles: VehicleRef[];
   refreshTokenHash: string;
   collectorStatus: "active" | "paused" | "revoked";
@@ -97,6 +99,8 @@ export async function POST(req: NextRequest) {
       transport: (body.transport as TenantRecord["transport"]) ?? "fleet_api",
       retentionDays: Number(body.retentionDays ?? 365),
       consentAcceptedAt: String(body.consentAcceptedAt ?? registeredAt),
+      disclosureVersion: Number(body.disclosureVersion ?? 1),
+      disclosureAcceptedAt: String(body.disclosureAcceptedAt ?? registeredAt),
       vehicles,
       refreshTokenHash: hashToken(refreshToken),
       collectorStatus: "active",
