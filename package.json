@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "tesla:register-partner": "node scripts/register-tesla-cn-partner.mjs"
   },
   "dependencies": {
     "@marsidev/react-turnstile": "^1.5.1",
