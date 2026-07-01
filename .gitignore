@@ -22,6 +22,7 @@
 
 # misc
 .DS_Store
+/secrets/
 *.pem
 !public/.well-known/appspecific/com.tesla.3p.public-key.pem
 
