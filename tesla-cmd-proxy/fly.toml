@@ -1,0 +1,27 @@
+# fly.toml app = "telog-tesla-cmd" — deploy with: fly deploy
+app = "telog-tesla-cmd"
+primary_region = "sin"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  TESLA_HTTP_PROXY_HOST = "0.0.0.0"
+  TESLA_HTTP_PROXY_PORT = "4443"
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 4443
+  processes = ["app"]
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+
+[mounts]
+  source = "tesla_cmd_secrets"
+  destination = "/run/secrets"

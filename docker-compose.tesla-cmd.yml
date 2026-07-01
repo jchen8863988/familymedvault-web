@@ -1,0 +1,24 @@
+# Tesla Vehicle Command Protocol proxy for TeLog.
+# Mirrors TeslaMate + TeslaMateApi command stack: app → Vercel → tesla-http-proxy → Fleet API.
+#
+# Setup:
+#   1. Place private key at ./secrets/tesla-command-private-key.pem (matches public key on Vercel)
+#   2. docker compose -f docker-compose.tesla-cmd.yml up -d
+#   3. Set Vercel env: TESLA_VEHICLE_COMMAND_PROXY_URL=https://your-host:4443
+#
+# Users pair virtual key once: https://www.tesla.cn/_ak/www.familymedvault.com?vin=VIN
+
+services:
+  tesla-http-proxy:
+    build:
+      context: ./tesla-cmd-proxy
+    restart: unless-stopped
+    ports:
+      - "${TESLA_CMD_PROXY_PORT:-4443}:4443"
+    volumes:
+      - ${TESLA_CMD_PRIVATE_KEY:-./secrets/tesla-command-private-key.pem}:/run/secrets/private-key.pem:ro
+      - ${TESLA_CMD_TLS_DIR:-./secrets/tesla-cmd-tls}:/run/tls:ro
+    environment:
+      TESLA_HTTP_PROXY_KEY_FILE: /run/secrets/private-key.pem
+      TESLA_HTTP_PROXY_TLS_CERT: /run/tls/cert.pem
+      TESLA_HTTP_PROXY_TLS_KEY: /run/tls/key.pem
