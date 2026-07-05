@@ -4,6 +4,10 @@ import { runCloudCollectCollectorTick } from "@/lib/telog/cloudCollectCollector"
 import { CloudCollectStorageError } from "@/lib/telog/cloudCollectStore";
 
 function authorize(req: NextRequest): boolean {
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret && req.headers.get("authorization") === `Bearer ${cronSecret}`) {
+    return true;
+  }
   const proxyKey = process.env.TESLA_CN_AUTH_PROXY_KEY;
   const authHeader = req.headers.get("authorization") ?? "";
   const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";

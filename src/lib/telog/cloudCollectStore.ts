@@ -396,7 +396,12 @@ export async function pullCloudCollectEvents(
 
 /** Active tenants for optional 7×24 collector cron. */
 export async function listActiveCloudCollectTenants(): Promise<
-  Array<{ tenantId: string; transport: string; refreshTokenVault: EncryptedRefreshTokenVault | null }>
+  Array<{
+    tenantId: string;
+    transport: string;
+    refreshTokenVault: EncryptedRefreshTokenVault | null;
+    vehicles: VehicleRef[];
+  }>
 > {
   const sb = createServiceSupabase();
   if (!sb) {
@@ -407,12 +412,13 @@ export async function listActiveCloudCollectTenants(): Promise<
         tenantId: t.tenantId,
         transport: t.transport,
         refreshTokenVault: t.refreshTokenVault ?? null,
+        vehicles: t.vehicles,
       }));
   }
 
   const { data, error } = await sb
     .from("telog_cloud_tenants")
-    .select("tenant_id, transport, refresh_token_vault")
+    .select("tenant_id, transport, refresh_token_vault, vehicles")
     .eq("collector_status", "active");
 
   if (error) throw new CloudCollectStorageError(error.message, "db_error");
@@ -421,5 +427,6 @@ export async function listActiveCloudCollectTenants(): Promise<
     tenantId: row.tenant_id,
     transport: row.transport,
     refreshTokenVault: (row.refresh_token_vault as EncryptedRefreshTokenVault | null) ?? null,
+    vehicles: Array.isArray(row.vehicles) ? (row.vehicles as VehicleRef[]) : [],
   }));
 }
