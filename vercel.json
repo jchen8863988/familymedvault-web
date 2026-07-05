@@ -1,8 +1,0 @@
-{
-  "crons": [
-    {
-      "path": "/api/telog/cloud-collect/collector",
-      "schedule": "*/15 * * * *"
-    }
-  ]
-}
