@@ -16,6 +16,16 @@ export type FamilyInviteRow = {
   granteeUserId?: string;
   granteePhoneMasked?: string;
   acceptedAt?: string;
+  vehicleLabel?: string;
+  ownerLabel?: string;
+  granteeLocationConsentAt?: string;
+};
+
+export type FamilyLiveSnapshotRow = {
+  shareLinkId: string;
+  inviteToken: string;
+  payload: Record<string, unknown>;
+  updatedAt: string;
 };
 
 export class FamilyShareStorageError extends Error {
@@ -38,7 +48,12 @@ type MemoryRow = {
   granteeUserId?: string;
   granteePhoneMasked?: string;
   acceptedAt?: string;
+  vehicleLabel?: string;
+  ownerLabel?: string;
+  granteeLocationConsentAt?: string;
 };
+
+const memoryLiveSnapshots = new Map<string, FamilyLiveSnapshotRow>();
 
 const memoryInvites = new Map<string, MemoryRow>();
 
@@ -58,6 +73,9 @@ function rowFromMemory(token: string, row: MemoryRow): FamilyInviteRow {
     granteeUserId: row.granteeUserId,
     granteePhoneMasked: row.granteePhoneMasked,
     acceptedAt: row.acceptedAt,
+    vehicleLabel: row.vehicleLabel,
+    ownerLabel: row.ownerLabel,
+    granteeLocationConsentAt: row.granteeLocationConsentAt,
   };
 }
 
@@ -73,6 +91,11 @@ function mapDbRow(row: Record<string, unknown>): FamilyInviteRow {
     granteeUserId: row.grantee_user_id ? String(row.grantee_user_id) : undefined,
     granteePhoneMasked: row.grantee_phone_masked ? String(row.grantee_phone_masked) : undefined,
     acceptedAt: row.accepted_at ? String(row.accepted_at) : undefined,
+    vehicleLabel: row.vehicle_label ? String(row.vehicle_label) : undefined,
+    ownerLabel: row.owner_label ? String(row.owner_label) : undefined,
+    granteeLocationConsentAt: row.grantee_location_consent_at
+      ? String(row.grantee_location_consent_at)
+      : undefined,
   };
 }
 
@@ -104,6 +127,8 @@ export async function createFamilyInvite(input: {
   relation: string;
   shareLinkId?: string;
   ownerAccountId?: string;
+  vehicleLabel?: string;
+  ownerLabel?: string;
 }): Promise<void> {
   const token = input.inviteToken.trim();
   if (!token) throw new FamilyShareStorageError("missing_token", "db_error");
@@ -122,6 +147,8 @@ export async function createFamilyInvite(input: {
       createdAt,
       shareLinkId: input.shareLinkId,
       ownerAccountId: input.ownerAccountId,
+      vehicleLabel: input.vehicleLabel,
+      ownerLabel: input.ownerLabel,
     });
     return;
   }
@@ -135,6 +162,8 @@ export async function createFamilyInvite(input: {
       created_at: createdAt,
       share_link_id: input.shareLinkId ?? null,
       owner_account_id: input.ownerAccountId ?? null,
+      vehicle_label: input.vehicleLabel ?? null,
+      owner_label: input.ownerLabel ?? null,
       grantee_user_id: null,
       grantee_phone_masked: null,
       accepted_at: null,
@@ -149,6 +178,7 @@ export async function acceptFamilyInvite(input: {
   inviteToken: string;
   granteeUserId?: string;
   granteePhoneMasked?: string;
+  granteeLocationConsentAt?: string;
 }): Promise<void> {
   const token = input.inviteToken.trim();
   const existing = await getFamilyInvite(token);
@@ -168,6 +198,9 @@ export async function acceptFamilyInvite(input: {
     row.granteeUserId = input.granteeUserId;
     row.granteePhoneMasked = input.granteePhoneMasked;
     row.acceptedAt = acceptedAt;
+    if (input.granteeLocationConsentAt) {
+      row.granteeLocationConsentAt = input.granteeLocationConsentAt;
+    }
     memoryInvites.set(token, row);
     return;
   }
@@ -178,6 +211,7 @@ export async function acceptFamilyInvite(input: {
       grantee_user_id: input.granteeUserId ?? null,
       grantee_phone_masked: input.granteePhoneMasked ?? null,
       accepted_at: acceptedAt,
+      grantee_location_consent_at: input.granteeLocationConsentAt ?? null,
     })
     .eq("invite_token", token)
     .eq("revoked", false);
@@ -206,4 +240,87 @@ export async function revokeFamilyInvite(token: string): Promise<void> {
     .eq("invite_token", trimmed);
 
   if (error) throw new FamilyShareStorageError(error.message, "db_error");
+}
+
+export async function upsertFamilyLiveSnapshot(input: {
+  shareLinkId: string;
+  inviteToken: string;
+  payload: Record<string, unknown>;
+}): Promise<void> {
+  const shareLinkId = input.shareLinkId.trim();
+  const inviteToken = input.inviteToken.trim();
+  if (!shareLinkId || !inviteToken) {
+    throw new FamilyShareStorageError("missing_ids", "db_error");
+  }
+
+  const updatedAt = new Date().toISOString();
+  const sb = createServiceSupabase();
+
+  if (!sb) {
+    if (!useMemoryFallback()) {
+      throw new FamilyShareStorageError("storage_not_configured", "storage_not_configured");
+    }
+    memoryLiveSnapshots.set(shareLinkId, {
+      shareLinkId,
+      inviteToken,
+      payload: input.payload,
+      updatedAt,
+    });
+    return;
+  }
+
+  const { error } = await sb.from("telog_family_live_snapshots").upsert(
+    {
+      share_link_id: shareLinkId,
+      invite_token: inviteToken,
+      payload: input.payload,
+      updated_at: updatedAt,
+    },
+    { onConflict: "share_link_id" },
+  );
+
+  if (error) throw new FamilyShareStorageError(error.message, "db_error");
+}
+
+export async function getFamilyLiveSnapshot(
+  shareLinkId: string,
+): Promise<FamilyLiveSnapshotRow | null> {
+  const trimmed = shareLinkId.trim();
+  if (!trimmed) return null;
+
+  const sb = createServiceSupabase();
+  if (!sb) {
+    if (!useMemoryFallback()) return null;
+    return memoryLiveSnapshots.get(trimmed) ?? null;
+  }
+
+  const { data, error } = await sb
+    .from("telog_family_live_snapshots")
+    .select("*")
+    .eq("share_link_id", trimmed)
+    .maybeSingle();
+
+  if (error) throw new FamilyShareStorageError(error.message, "db_error");
+  if (!data) return null;
+
+  const row = data as Record<string, unknown>;
+  return {
+    shareLinkId: String(row.share_link_id),
+    inviteToken: String(row.invite_token),
+    payload: (row.payload as Record<string, unknown>) ?? {},
+    updatedAt: String(row.updated_at),
+  };
+}
+
+export async function deleteFamilyLiveSnapshot(shareLinkId: string): Promise<void> {
+  const trimmed = shareLinkId.trim();
+  if (!trimmed) return;
+
+  const sb = createServiceSupabase();
+  if (!sb) {
+    if (useMemoryFallback()) memoryLiveSnapshots.delete(trimmed);
+    return;
+  }
+
+  await sb.from("telog_family_live_snapshots").delete().eq("share_link_id", trimmed);
 }
