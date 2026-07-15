@@ -34,17 +34,38 @@ function poiHit(poi: { location?: string; name?: string; address?: string } | un
   return { location: poi.location, formatted: label || poi.name || "", label: label || poi.name || "" };
 }
 
+/** Resolve the city adcode of the bias point so searches stay local. */
+async function resolveNearAdcode(amapKey: string, nearGcj: string): Promise<string | null> {
+  const params = new URLSearchParams({
+    key: amapKey,
+    location: nearGcj,
+    extensions: "base",
+    output: "json",
+  });
+  const res = await fetchAmapJson<{
+    status?: string;
+    regeocode?: { addressComponent?: { adcode?: unknown } };
+  }>(`${AMAP_REGEO}?${params}`);
+  const adcode = res?.status === "1" ? res.regeocode?.addressComponent?.adcode : null;
+  // Amap serializes missing fields as [] — only accept a non-empty string.
+  return typeof adcode === "string" && adcode.length > 0 ? adcode : null;
+}
+
 /**
- * Structured geocode first; fall back to POI search so brand/place names
- * (「特斯拉中心」) and partial street addresses (「华祥路11号」) still resolve.
- * `nearGcj` = "lng,lat" (GCJ-02) biases POI search to the user's map area.
+ * Local-first search: bias everything to the user's map area, because the
+ * nationwide geocode index happily returns a same-named street in another
+ * province. Order: city-scoped geocode → nearby POI → city POI → nationwide.
+ * `nearGcj` = "lng,lat" (GCJ-02).
  */
 async function forwardSearch(
   amapKey: string,
   address: string,
   nearGcj: string | null,
 ): Promise<{ location: string; formatted: string; label: string } | null> {
+  const adcode = nearGcj ? await resolveNearAdcode(amapKey, nearGcj) : null;
+
   const geoParams = new URLSearchParams({ key: amapKey, address, output: "json" });
+  if (adcode) geoParams.set("city", adcode);
   const geo = await fetchAmapJson<AmapGeoResponse>(`${AMAP_GEO}?${geoParams}`);
   const g = geo?.status === "1" ? geo.geocodes?.[0] : undefined;
   if (g?.location) {
@@ -67,6 +88,20 @@ async function forwardSearch(
     });
     const around = await fetchAmapJson<AmapPoiResponse>(`${AMAP_POI_AROUND}?${aroundParams}`);
     const hit = around?.status === "1" ? poiHit(around.pois?.[0]) : null;
+    if (hit) return hit;
+  }
+
+  if (adcode) {
+    const cityParams = new URLSearchParams({
+      key: amapKey,
+      keywords: address,
+      city: adcode,
+      citylimit: "true",
+      offset: "1",
+      output: "json",
+    });
+    const cityText = await fetchAmapJson<AmapPoiResponse>(`${AMAP_POI_TEXT}?${cityParams}`);
+    const hit = cityText?.status === "1" ? poiHit(cityText.pois?.[0]) : null;
     if (hit) return hit;
   }
 
