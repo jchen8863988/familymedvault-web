@@ -7,6 +7,18 @@ const AMAP_POI_TEXT = "https://restapi.amap.com/v3/place/text";
 
 const AMAP_TIMEOUT_MS = 8_000;
 
+/** Prefer POI within this of the map center (first pass). */
+const AROUND_RADIUS_NEAR_M = 20_000;
+/** Second pass when the POI is a bit farther in the same metro. */
+const AROUND_RADIUS_FAR_M = 50_000;
+/**
+ * Reject /geocode/geo hits farther than this from `near`.
+ * City-scoped address geocode often returns a same-named street 20km+ away.
+ */
+const GEO_MAX_FROM_NEAR_M = 12_000;
+/** Last-resort nationwide POI must still stay near the map when bias is set. */
+const NATIONWIDE_MAX_FROM_NEAR_M = 80_000;
+
 async function fetchAmapJson<T>(url: string): Promise<T | null> {
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(AMAP_TIMEOUT_MS) });
@@ -21,17 +33,83 @@ type AmapGeoResponse = {
   geocodes?: Array<{ location?: string; formatted_address?: string }>;
 };
 
+type AmapPoi = { location?: string; name?: string; address?: string; distance?: string };
 type AmapPoiResponse = {
   status?: string;
-  pois?: Array<{ location?: string; name?: string; address?: string }>;
+  pois?: AmapPoi[];
 };
 
-function poiHit(poi: { location?: string; name?: string; address?: string } | undefined) {
+type ForwardHit = { location: string; formatted: string; label: string };
+
+function parseGcj(location: string): { lat: number; lng: number } | null {
+  const [lngS, latS] = location.split(",");
+  const lat = Number(latS);
+  const lng = Number(lngS);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { lat, lng };
+}
+
+function haversineM(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6_371_000 * Math.asin(Math.sqrt(a));
+}
+
+function distanceFromNearM(location: string, nearGcj: string): number {
+  const a = parseGcj(location);
+  const b = parseGcj(nearGcj);
+  if (!a || !b) return Number.POSITIVE_INFINITY;
+  return haversineM(a.lat, a.lng, b.lat, b.lng);
+}
+
+function poiHit(poi: AmapPoi | undefined): ForwardHit | null {
   if (!poi?.location) return null;
   const label = [poi.name, typeof poi.address === "string" ? poi.address : ""]
     .filter(Boolean)
     .join(" · ");
-  return { location: poi.location, formatted: label || poi.name || "", label: label || poi.name || "" };
+  return {
+    location: poi.location,
+    formatted: label || poi.name || "",
+    label: label || poi.name || "",
+  };
+}
+
+/** Prefer POIs whose name shares tokens with the query (e.g. 特斯拉 / 温岭). */
+function scorePoi(poi: AmapPoi, query: string, nearGcj: string | null): number {
+  const name = (poi.name ?? "").toLowerCase();
+  const q = query.toLowerCase().replace(/\s+/g, "");
+  let score = 0;
+  if (name && q && name.includes(q)) score += 1000;
+  // Token overlap for Chinese POI names (2+ char chunks).
+  for (let i = 0; i < q.length - 1; i++) {
+    const tok = q.slice(i, i + 2);
+    if (name.includes(tok)) score += 20;
+  }
+  if (nearGcj && poi.location) {
+    const d = distanceFromNearM(poi.location, nearGcj);
+    // Closer is better; keep within a useful range.
+    score += Math.max(0, 500 - d / 100);
+  }
+  return score;
+}
+
+function bestPoi(pois: AmapPoi[] | undefined, query: string, nearGcj: string | null): ForwardHit | null {
+  if (!pois?.length) return null;
+  let best: AmapPoi | undefined;
+  let bestScore = -Infinity;
+  for (const poi of pois) {
+    if (!poi.location) continue;
+    const s = scorePoi(poi, query, nearGcj);
+    if (s > bestScore) {
+      bestScore = s;
+      best = poi;
+    }
+  }
+  return poiHit(best);
 }
 
 /** Resolve the city adcode of the bias point so searches stay local. */
@@ -51,44 +129,45 @@ async function resolveNearAdcode(amapKey: string, nearGcj: string): Promise<stri
   return typeof adcode === "string" && adcode.length > 0 ? adcode : null;
 }
 
+async function searchAround(
+  amapKey: string,
+  keywords: string,
+  nearGcj: string,
+  radiusM: number,
+): Promise<ForwardHit | null> {
+  const aroundParams = new URLSearchParams({
+    key: amapKey,
+    keywords,
+    location: nearGcj,
+    radius: String(radiusM),
+    sortrule: "distance",
+    offset: "10",
+    output: "json",
+  });
+  const around = await fetchAmapJson<AmapPoiResponse>(`${AMAP_POI_AROUND}?${aroundParams}`);
+  if (around?.status !== "1") return null;
+  return bestPoi(around.pois, keywords, nearGcj);
+}
+
 /**
- * Local-first search: bias everything to the user's map area, because the
- * nationwide geocode index happily returns a same-named street in another
- * province. Order: city-scoped geocode → nearby POI → city POI → nationwide.
- * `nearGcj` = "lng,lat" (GCJ-02).
+ * Local-first search. With a map `near` bias we MUST try nearby POI before
+ * /geocode/geo — the address index returns same-named streets tens of km away
+ * (e.g. searching 特斯拉中心 while looking at 温岭特斯拉中心).
+ * Order with near: around → city POI → near-checked geo → near-checked nationwide.
+ * Without near: geo → nationwide POI (legacy).
  */
 async function forwardSearch(
   amapKey: string,
   address: string,
   nearGcj: string | null,
-): Promise<{ location: string; formatted: string; label: string } | null> {
+): Promise<ForwardHit | null> {
   const adcode = nearGcj ? await resolveNearAdcode(amapKey, nearGcj) : null;
 
-  const geoParams = new URLSearchParams({ key: amapKey, address, output: "json" });
-  if (adcode) geoParams.set("city", adcode);
-  const geo = await fetchAmapJson<AmapGeoResponse>(`${AMAP_GEO}?${geoParams}`);
-  const g = geo?.status === "1" ? geo.geocodes?.[0] : undefined;
-  if (g?.location) {
-    return {
-      location: g.location,
-      formatted: g.formatted_address ?? address,
-      label: g.formatted_address ?? address,
-    };
-  }
-
   if (nearGcj) {
-    const aroundParams = new URLSearchParams({
-      key: amapKey,
-      keywords: address,
-      location: nearGcj,
-      radius: "50000",
-      sortrule: "distance",
-      offset: "1",
-      output: "json",
-    });
-    const around = await fetchAmapJson<AmapPoiResponse>(`${AMAP_POI_AROUND}?${aroundParams}`);
-    const hit = around?.status === "1" ? poiHit(around.pois?.[0]) : null;
-    if (hit) return hit;
+    const nearHit =
+      (await searchAround(amapKey, address, nearGcj, AROUND_RADIUS_NEAR_M)) ??
+      (await searchAround(amapKey, address, nearGcj, AROUND_RADIUS_FAR_M));
+    if (nearHit) return nearHit;
   }
 
   if (adcode) {
@@ -97,22 +176,56 @@ async function forwardSearch(
       keywords: address,
       city: adcode,
       citylimit: "true",
-      offset: "1",
+      offset: "10",
       output: "json",
     });
     const cityText = await fetchAmapJson<AmapPoiResponse>(`${AMAP_POI_TEXT}?${cityParams}`);
-    const hit = cityText?.status === "1" ? poiHit(cityText.pois?.[0]) : null;
-    if (hit) return hit;
+    const cityHit =
+      cityText?.status === "1" ? bestPoi(cityText.pois, address, nearGcj) : null;
+    if (cityHit) {
+      if (
+        !nearGcj ||
+        distanceFromNearM(cityHit.location, nearGcj) <= AROUND_RADIUS_FAR_M
+      ) {
+        return cityHit;
+      }
+    }
+  }
+
+  const geoParams = new URLSearchParams({ key: amapKey, address, output: "json" });
+  if (adcode) geoParams.set("city", adcode);
+  const geo = await fetchAmapJson<AmapGeoResponse>(`${AMAP_GEO}?${geoParams}`);
+  const g = geo?.status === "1" ? geo.geocodes?.[0] : undefined;
+  if (g?.location) {
+    if (!nearGcj || distanceFromNearM(g.location, nearGcj) <= GEO_MAX_FROM_NEAR_M) {
+      return {
+        location: g.location,
+        formatted: g.formatted_address ?? address,
+        label: g.formatted_address ?? address,
+      };
+    }
+    // Far geo hit discarded — keep searching.
   }
 
   const textParams = new URLSearchParams({
     key: amapKey,
     keywords: address,
-    offset: "1",
+    offset: "10",
     output: "json",
   });
+  if (adcode) {
+    textParams.set("city", adcode);
+  }
   const text = await fetchAmapJson<AmapPoiResponse>(`${AMAP_POI_TEXT}?${textParams}`);
-  return text?.status === "1" ? poiHit(text.pois?.[0]) : null;
+  const nationHit = text?.status === "1" ? bestPoi(text.pois, address, nearGcj) : null;
+  if (!nationHit) return null;
+  if (
+    nearGcj &&
+    distanceFromNearM(nationHit.location, nearGcj) > NATIONWIDE_MAX_FROM_NEAR_M
+  ) {
+    return null;
+  }
+  return nationHit;
 }
 
 /** WGS-84 → GCJ-02（高德坐标系） */
@@ -169,8 +282,8 @@ function authorize(req: NextRequest): NextResponse | null {
  * TeLog 高德地理编码代理 — AMAP_WEB_KEY 仅存服务端。
  * GET /api/telog/geocode?lat=&lng=       逆地理（WGS-84）
  * GET /api/telog/geocode?address=...&near=lat,lng
- *   正向地理（返回 GCJ location + formatted）；地址库查不到时回退 POI 搜索，
- *   near（WGS-84）用于就近排序（如「特斯拉中心」优先返回附近门店）。
+ *   正向地理（返回 GCJ location + formatted）；有 near 时优先周边 POI，
+ *   避免 /geocode/geo 跳到同市 20km+ 外的同名街道。
  * Authorization: Bearer TESLA_CN_AUTH_PROXY_KEY
  */
 export async function GET(req: NextRequest) {
